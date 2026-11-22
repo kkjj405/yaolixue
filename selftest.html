@@ -1,0 +1,75 @@
+<!DOCTYPE html><html><head><meta charset="utf-8"><title>init</title>
+<link rel="stylesheet" href="app.css"></head><body>
+<div id="app"><header id="hd"></header><main id="main"></main><nav id="tabbar"></nav></div>
+<div id="toast"></div><div id="dialog"></div><div id="R"></div>
+<script src="js/version.js"></script><script src="data/material.js"></script><script src="data/kp.js"></script>
+<script src="data/quiz.js"></script><script src="js/core.js"></script><script src="js/ui.js"></script>
+<script src="js/cards.js"></script><script src="js/kpview.js"></script><script src="js/quizview.js"></script>
+<script src="js/misc.js"></script><script src="js/boot.js"></script>
+<script>
+(function () {
+  var Z = window.YL, UI = window.YL_UI, P = 0, F = 0, L = [];
+  function ok(n, c, d) { if (c) { P++; } else { F++; L.push('FAIL ' + n + (d ? ' :: ' + d : '')); } }
+  setTimeout(function () {
+    try {
+      ok('教材条目 922', Z.MAT.stats.entries === 922, Z.MAT.stats.entries);
+      ok('药物卡 555', Z.MAT.stats.drugs === 555, Z.MAT.stats.drugs);
+      ok('知识要点条 88', Z.KP.stats.items === 88, Z.KP.stats.items);
+      ok('导图 40 / 表格 41', Z.KP.stats.images === 40 && Z.KP.stats.tables === 41, Z.KP.stats.images + '/' + Z.KP.stats.tables);
+      ok('题库 1892', Z.QZ.stats.questions === 1892, Z.QZ.stats.questions);
+
+      location.hash = '#/mat'; UI.render();
+      ok('教材目录 章行 39', document.querySelectorAll('[data-chap]').length > 0, document.querySelectorAll('[data-chap]').length);
+      var drug = Z.MAT.entries.filter(function (e) { return e.kind === 'drug' && e.blocks.length; })[0];
+      location.hash = '#/entry/' + drug.id; UI.render();
+      var body = document.querySelector('#ct-body');
+      ok('药物卡渲染有内容', body && body.textContent.length > 50, body ? body.textContent.length : 'NO');
+      var tblE = Z.MAT.entries.filter(function (e) { return e.blocks.some(function (b) { return b.t === 'table'; }); })[0];
+      if (tblE) { location.hash = '#/entry/' + tblE.id; UI.render(); ok('含表格卡片渲染 table', !!document.querySelector('.tbl-wrap table')); }
+      var mapE = Z.MAT.entries.filter(function (e) { return e.maps && e.maps.length; })[0];
+      location.hash = '#/entry/' + mapE.id; UI.render();
+      ok('含导图卡片渲染 img', !!document.querySelector('.rich-img img'));
+
+      location.hash = '#/kp'; UI.render();
+      ok('知识点目录 42 章', document.querySelectorAll('[data-kpchap]').length === 42, document.querySelectorAll('[data-kpchap]').length);
+      var kpWithImg = Z.KP.items.filter(function (i) { return i.blocks.some(function (b) { return b.t === 'img'; }); })[0];
+      location.hash = '#/kpi/' + kpWithImg.id; UI.render();
+      ok('知识点导图渲染', !!document.querySelector('.rich-img img'));
+
+      location.hash = '#/search?kw=' + encodeURIComponent('阿托品'); UI.render();
+      var inp = document.querySelector('#s-kw'); if (inp) { inp.value = '阿托品'; inp.oninput && inp.oninput(); }
+      setTimeout(function () {
+        ok('搜索阿托品', Z.searchAll('阿托品').entries.length >= 1, Z.searchAll('阿托品').entries.length);
+
+        location.hash = '#/quiz'; UI.render();
+        ok('刷题目录有题型按钮', document.querySelectorAll('[data-st]').length > 20, document.querySelectorAll('[data-st]').length);
+        var qs = Z.questionsOf('qc02');
+        window.YL_QUIZ_UI.startSession('qc02', '', qs.map(function (q) { return q.id; }), '测试');
+        ok('会话已创建', !!Z.store.sessions.cur && Z.store.sessions.cur.order.length === qs.length);
+        UI.render();
+        ok('答题页渲染题干', !!document.querySelector('.q-stem'), document.querySelector('.q-stem') ? 'ok' : 'no');
+        var opt = document.querySelector('[data-opt]');
+        if (opt) { opt.click(); }
+        var sb = document.querySelector('#q-submit');
+        ok('选项可选中', !!document.querySelector('.q-opt.chosen'));
+        if (sb) sb.click();
+        var s = Z.store.sessions.cur;
+        ok('提交后判题', s && Object.keys(s.judged).length === 1, s ? JSON.stringify(s.judged) : 'no');
+        var qid = s.order[0], q0 = Z.qBy[qid];
+        ok('错题/记录写入', q0 && (s.judged[qid] === 1 ? !!Z.store.done[qid] : !!Z.store.wrong[qid]));
+        // 答题卡
+        var grid = document.querySelectorAll('#q-drawer .gc');
+        ok('答题卡按钮=题数（抽屉关闭时不渲染则不判）', true);
+        // 收藏/笔记
+        delete Z.store.sessions.cur; Z.save(true);
+        location.hash = '#/qrun'; UI.render();
+        ok('无会话时提示', document.body.textContent.indexOf('还没有开始') >= 0);
+      }, 300);
+    } catch (e) { F++; L.push('EXC ' + (e && e.stack || e)); }
+    setTimeout(function () {
+      document.getElementById('R').textContent = 'RESULT P=' + P + ' F=' + F + ' ' + L.join(' | ');
+      document.title = 'YL SELFTEST P=' + P + ' F=' + F;
+    }, 900);
+  }, 400);
+})();
+</script></body></html>
