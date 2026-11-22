@@ -5,6 +5,22 @@
   var esc = Z.esc, icon = UI.icon;
   var VER = window.YL_VERSION || { web: '1.0.0' };
 
+  var ANN = [
+    '该程序内容完全基于人民卫生出版社《药理学》（第9版）与《药理学学习指导与习题集（第3版）》，仅供学习使用，不提供临床指导。',
+    '如果觉得有用的话，可以分享给身边的朋友、同学。',
+    '制作不易，可以给作者一点赞赏嘛，赞赏入口在「我的 → 赞赏支持」。'
+  ];
+
+  function annHTML() {
+    var open = Z.store.meta.annOpen !== false;
+    return '<div class="ann' + (open ? ' open' : '') + '" id="ann"><div class="ann-hd" id="ann-hd">' +
+      '<span class="ann-ic">📢</span><span class="ann-t">公告</span>' +
+      '<span class="ann-more">' + (open ? '收起' : '展开') + '</span>' +
+      '<span class="ann-caret">▸</span></div><div class="ann-bd">' +
+      ANN.map(function (x, i) { return '<div class="ann-i"><span class="ann-n">' + (i + 1) + '</span><span>' + esc(x) + '</span></div>'; }).join('') +
+      '</div></div>';
+  }
+
   function renderHome(main) {
     UI.header({ title: '药理学' });
     var ms = Z.MAT.stats, ks = Z.KP.stats, qs = Z.QZ.stats;
@@ -12,6 +28,7 @@
       '<p>教材卡片 · 知识要点 · 自测刷题</p>' +
       '<div class="mini"><span><b>' + ms.drugs + '</b>药物</span><span><b>' + ms.topics + '</b>概念</span>' +
       '<span><b>' + ks.images + '</b>导图</span><span><b>' + qs.questions + '</b>题</span></div></div>'];
+    h.push(annHTML());
     h.push('<div class="big-grid">' +
       '<a class="big" href="#/mat"><div class="big-ic">' + icon('book') + '</div><div class="big-t">教材卡片</div>' +
       '<div class="big-s">' + ms.chapters + ' 章 · ' + (ms.drugs + ms.topics) + ' 张卡<br>药物卡 / 概论卡</div></a>' +
@@ -24,9 +41,15 @@
     var favN = Object.keys(Z.store.fav).length;
     h.push('<div class="card list"><a class="li" href="#/fav"><span class="li-ic">' + icon('star') + '</span>' +
       '<span class="grow"><span class="li-t">我的收藏</span><span class="li-s">教材卡片 ' + favN + ' 张</span></span><span class="at-go">›</span></a></div>');
-    h.push('<div class="card flat"><p class="small muted" style="margin:0">内容基于《药理学》（第9版）教材整理稿与《学习指导与习题集（第3版）》；' +
-      '教材卡片 ' + ms.parts + ' 篇 ' + ms.chapters + ' 章、知识要点 ' + ks.chapters + ' 章（导图 ' + ks.images + ' 张）、自测题 ' + qs.questions + ' 题。仅供学习。</p></div>');
     main.innerHTML = h.join('');
+    var ann = main.querySelector('#ann-hd');
+    if (ann) ann.onclick = function () {
+      var box = main.querySelector('#ann');
+      var open = !box.classList.contains('open');
+      box.classList.toggle('open', open);
+      Z.store.meta.annOpen = open; Z.save();
+      var m = box.querySelector('.ann-more'); if (m) m.textContent = open ? '收起' : '展开';
+    };
   }
 
   function renderSearch(main, p, q) {
@@ -179,12 +202,13 @@
   function renderAbout(main) {
     UI.header({ title: '关于', back: true });
     var ms = Z.MAT.stats, ks = Z.KP.stats, qs = Z.QZ.stats;
-    main.innerHTML = '<div class="card"><h3 class="serif" style="margin:0 0 8px">药理学 · 学习工具</h3>' +
-      '<p class="small">内容基于《药理学》（第9版）教材整理稿与《药理学学习指导与习题集（第3版）》整理稿。仅供学习使用，不提供临床用药指导。</p>' +
-      '<p class="small muted">教材卡片：' + ms.parts + ' 篇 ' + ms.chapters + ' 章 ' + (ms.drugs + ms.topics) + ' 张卡（药物 ' + ms.drugs + '、概念 ' + ms.topics + '），导图 ' + ms.maps + ' 张。' +
+    var cards = ms.drugs + ms.topics;
+    main.innerHTML = '<div class="card"><h3 class="serif" style="margin:0 0 10px">药理学 · 学习工具</h3>' +
+      '<p class="small" style="line-height:1.75">内容基于《药理学》教材整理稿与《学习指导与习题集》整理稿。' +
+      '仅供学习使用，不提供临床用药指导。' +
+      '教材卡片：' + ms.parts + ' 篇 ' + ms.chapters + ' 章 ' + cards + ' 张卡（药物 ' + ms.drugs + '、概念 ' + ms.topics + '），导图 ' + ms.maps + ' 张。' +
       '知识要点：' + ks.chapters + ' 章 ' + ks.items + ' 条，含导图 ' + ks.images + ' 张、表格 ' + ks.tables + ' 个。' +
-      '自测题：' + qs.questions + ' 题（最佳 ' + qs.A1 + ' / 配伍 ' + qs.B1 + ' / 多选 ' + qs.X + ' / 名词 ' + qs.NM + ' / 问答 ' + qs.QA + '）。</p>' +
-      '<p class="small muted">版本 v' + esc(VER.web) + ' · 记录仅保存在本机 · 支持离线使用</p></div>';
+      '自测题：' + qs.questions + ' 题（最佳 ' + qs.A1 + ' / 配伍 ' + qs.B1 + ' / 多选 ' + qs.X + ' / 名词 ' + qs.NM + ' / 问答 ' + qs.QA + '）。</p></div>';
   }
 
   function renderTip(main) {
