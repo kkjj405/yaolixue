@@ -153,7 +153,16 @@
       (tip ? '<div class="tiny" style="margin-top:6px">' + esc(tip) + '</div>' : '') + '</div>';
   }
 
+  function lightbox(src) {
+    var el = document.getElementById('imgv');
+    if (!el) { el = document.createElement('div'); el.id = 'imgv'; document.body.appendChild(el); }
+    el.innerHTML = '<div class="iv-close">✕</div><img src="' + src + '" alt="">';
+    el.classList.add('on');
+    el.onclick = function () { el.classList.remove('on'); el.innerHTML = ''; };
+  }
+
   window.YL_UI = {
+    lightbox: lightbox,
     ICONS: ICONS, icon: icon, TABS: TABS, VIEWS: VIEWS, state: state,
     header: header, tabbar: tabbar, render: render, go: go, replaceHash: replaceHash, back: back,
     dialog: dialog, closeDialog: closeDialog, confirmDialog: confirmDialog, dialogOpen: dialogOpen,

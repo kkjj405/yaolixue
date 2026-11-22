@@ -59,16 +59,18 @@
     var entries = chapEntries(chId).filter(function (e) {
       return e.kind !== 'group' && (!kw || e.name.indexOf(kw) >= 0 || (e.en || '').toLowerCase().indexOf(kw.toLowerCase()) >= 0);
     });
-    var out = ['<div class="ec-list">'], curSec = '', curGrp = '';
+    var out = ['<div class="ec-list">'], curSec = '';
     entries.forEach(function (e) {
       var sec = Z.sectionById(e.sectionId);
-      if (sec && sec.id !== curSec) { curSec = sec.id; curGrp = ''; out.push('<div class="ec-sec">' + esc(sec.no) + '　' + esc(sec.name) + '</div>'); }
-      if (e.groupId) {
-        var g = Z.matBy[e.groupId];
-        if (g && g.id !== curGrp) { curGrp = g.id; out.push('<div class="ec-grp">' + esc(g.name) + '</div>'); }
+      if (sec && sec.id !== curSec) { curSec = sec.id; out.push('<div class="ec-sec">' + esc(sec.no) + '　' + esc(sec.name) + '</div>'); }
+      var depth = (e.path || []).length;
+      var ind = 14 + depth * 14;
+      if (e.kind === 'group') {
+        out.push('<div class="ec-grp lv' + (e.lvl || 1) + '" style="padding-left:' + ind + 'px">' + esc(e.name) + '</div>');
+        return;
       }
       var hid = Z.isHidden(e.id);
-      out.push('<a class="er' + (hid ? ' hid' : '') + '" href="#/entry/' + e.id + '">' +
+      out.push('<a class="er' + (hid ? ' hid' : '') + '" style="padding-left:' + ind + 'px" href="#/entry/' + e.id + '">' +
         '<span class="er-kind ' + e.kind + '">' + (e.kind === 'drug' ? '药' : '概') + '</span>' +
         '<span class="er-nm">' + esc(e.name) + (e.en ? ' <span class="tiny dim">' + esc(e.en) + '</span>' : '') + '</span>' +
         (e.maps && e.maps.length ? '<span class="flag" title="含导图">◈</span>' : '') +
@@ -119,10 +121,17 @@
       '<button class="btn sm" id="e-next"' + (next ? '' : ' disabled') + '>下一条 ›</button></div>');
     main.innerHTML = h.join('');
     Z.store.last.entry = v.id; Z.save();
+    bindImgs(main);
     main.querySelector('#e-prev').onclick = function () { if (prev) UI.replaceHash('#/entry/' + prev); };
     main.querySelector('#e-next').onclick = function () { if (next) UI.replaceHash('#/entry/' + next); };
     main.querySelectorAll('[data-act]').forEach(function (b) {
       b.onclick = function () { openPanel(main, b.getAttribute('data-act'), v); };
+    });
+  }
+
+  function bindImgs(main) {
+    main.querySelectorAll('.rich-img img').forEach(function (img) {
+      img.onclick = function () { UI.lightbox(img.getAttribute('src')); };
     });
   }
 

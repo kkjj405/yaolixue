@@ -45,6 +45,9 @@
       '<button class="btn sm" id="k-next"' + (next ? '' : ' disabled') + '>下一条 ›</button></div>');
     main.innerHTML = h.join('');
     Z.store.last.kp = it.id; Z.save();
+    main.querySelectorAll('.rich-img img').forEach(function (img) {
+      img.onclick = function () { UI.lightbox(img.getAttribute('src')); };
+    });
     main.querySelector('#k-prev').onclick = function () { if (prev) UI.replaceHash('#/kpi/' + prev); };
     main.querySelector('#k-next').onclick = function () { if (next) UI.replaceHash('#/kpi/' + next); };
     main.querySelectorAll('[data-act]').forEach(function (b) {

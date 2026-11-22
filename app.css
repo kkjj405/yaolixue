@@ -632,3 +632,19 @@ textarea.input{resize:vertical; min-height:88px}
 .resume{border-left:4px solid var(--brown)}
 .chip.on{background:var(--brown);color:#fff;border-color:var(--brown)}
 .chip.gold{color:#b8892f}
+
+/* 导图缩略图 + 点开大图 */
+.rich-img{margin:10px 0;padding:0}
+.rich-img img{display:block;max-width:100%;max-height:280px;width:auto;height:auto;object-fit:contain;
+  margin:0 auto;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:zoom-in}
+.rich-img figcaption{margin-top:4px;text-align:center;font-size:11.5px;color:var(--ink-3)}
+#imgv{position:fixed;inset:0;background:rgba(16,14,30,.94);z-index:90;display:none;overflow:auto;
+  -webkit-overflow-scrolling:touch;padding:16px}
+#imgv.on{display:block}
+#imgv img{display:block;max-width:none;width:auto;margin:0 auto;background:#fff;border-radius:8px}
+.iv-close{position:fixed;right:14px;top:14px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.16);
+  color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:91}
+/* 目录层级缩进 */
+.ec-grp.lv1{font-size:12.5px;font-weight:700;color:var(--brown-d);margin-top:8px}
+.ec-grp.lv2{font-size:11.8px;font-weight:600;color:var(--brown);margin-top:5px}
+.ec-grp.lv3{font-size:11.2px;font-weight:600;color:var(--ink-3);margin-top:4px}
