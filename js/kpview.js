@@ -35,16 +35,50 @@
     UI.header({ title: c.name, sub: '知识要点', back: true, backTo: '#/kp' });
     var h = [];
     c.itemIds.forEach(function (id) {
-      var it = Z.kpBy[id];
+      var raw = Z.kpBy[id], it = Z.viewKp(raw);
       h.push('<div class="card kp-item" id="kp-' + it.id + '"><div class="kp-hd"><span class="kp-no">' + (it.no || '') +
         '</span><span class="kp-t">' + esc(it.title) + '</span>' +
+        (it.hasEdit ? '<span class="chip gray tiny">已修改</span>' : '') +
+        '<button class="btn xs ghost" data-kpedit="' + it.id + '">编辑</button>' +
         '<button class="btn xs ghost" data-kpfav="' + it.id + '">' + (Z.isFav(it.id) ? '★ 已藏' : '☆ 收藏') + '</button></div>' +
-        '<div class="rich">' + Z.renderRich(it.blocks) + '</div></div>');
+        '<div class="rich">' + Z.renderRich(it.blocks) + '</div><div class="kp-panel" id="kppanel-' + it.id + '"></div></div>');
     });
     main.innerHTML = h.join('');
     bindImgs(main);
     main.querySelectorAll('[data-kpfav]').forEach(function (b) {
       b.onclick = function () { Z.toggleFav(b.getAttribute('data-kpfav')); UI.render(); };
+    });
+    main.querySelectorAll('[data-kpedit]').forEach(function (b) {
+      b.onclick = function () {
+        var it = Z.viewKp(Z.kpBy[b.getAttribute('data-kpedit')]);
+        var host = document.getElementById('kppanel-' + it.id);
+        var secs = Z.splitSections(it.blocks);
+        host.innerHTML = '<div class="panel"><div class="p-hd"><span>编辑「' + esc(it.title) + '」</span>' +
+          '<button class="btn xs ghost" data-kpc="close">收起</button></div>' +
+          '<p class="tiny dim">分段编辑，一行一段；| a | b | 为表格；仅本机生效。</p>' +
+          secs.map(function (sec, i) {
+            return '<div class="ef"><label>' + (sec.title ? esc(sec.title) : (i === 0 ? '开头' : '第 ' + (i + 1) + ' 段')) +
+              '</label><textarea class="textarea ef-ta" data-sec="' + i + '">' + esc(Z.blocksText(sec.blocks)) + '</textarea></div>';
+          }).join('') +
+          '<div class="p-ft"><button class="btn sm" data-kpc="reset">恢复原文</button>' +
+          '<button class="btn sm primary" data-kpc="save">保存修改</button></div></div>';
+        host.querySelector('[data-kpc="close"]').onclick = function () { host.innerHTML = ''; };
+        host.querySelector('[data-kpc="reset"]').onclick = function () {
+          delete Z.store.edits[it.id]; Z.save(true); UI.toast('已恢复原文'); UI.render();
+        };
+        host.querySelector('[data-kpc="save"]').onclick = function () {
+          var out = [], changed = false;
+          host.querySelectorAll('.ef-ta').forEach(function (ta) {
+            var i = +ta.getAttribute('data-sec');
+            var nb = Z.mdToBlocks(ta.value);
+            if ((ta.value || '').trim() !== Z.blocksText(secs[i].blocks).trim()) changed = true;
+            out.push({ title: secs[i].title, blocks: nb });
+          });
+          if (!changed) { UI.toast('没有改动'); return; }
+          Z.store.edits[it.id] = { blocks: Z.joinSections(out) };
+          Z.save(true); UI.toast('已保存（仅本机）'); host.innerHTML = ''; UI.render();
+        };
+      };
     });
   }
 

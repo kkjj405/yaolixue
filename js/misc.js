@@ -21,9 +21,9 @@
       '<div class="big-s">' + qs.questions + ' 题 · 4 种题型<br>答题卡 · 错题 · 收藏</div></a>' +
       '<a class="big" href="#/search"><div class="big-ic">' + icon('search') + '</div><div class="big-t">搜索</div>' +
       '<div class="big-s">药名 / 英文 / 内容<br>教材与要点全覆盖</div></a></div>');
-    var wrong = Z.wrongList().length, fav = Z.favQList().length;
-    h.push('<div class="card list"><a class="li" href="#/quiz"><span class="li-ic">' + icon('chart') + '</span>' +
-      '<span class="grow"><span class="li-t">继续 / 错题 / 收藏</span><span class="li-s">错题 ' + wrong + ' · 收藏题 ' + fav + '</span></span><span class="at-go">›</span></a></div>');
+    var favN = Object.keys(Z.store.fav).length;
+    h.push('<div class="card list"><a class="li" href="#/fav"><span class="li-ic">' + icon('star') + '</span>' +
+      '<span class="grow"><span class="li-t">我的收藏</span><span class="li-s">教材卡片 ' + favN + ' 张</span></span><span class="at-go">›</span></a></div>');
     h.push('<div class="card flat"><p class="small muted" style="margin:0">内容基于《药理学》（第9版）教材整理稿与《学习指导与习题集（第3版）》；' +
       '教材卡片 ' + ms.parts + ' 篇 ' + ms.chapters + ' 章、知识要点 ' + ks.chapters + ' 章（导图 ' + ks.images + ' 张）、自测题 ' + qs.questions + ' 题。仅供学习。</p></div>');
     main.innerHTML = h.join('');
@@ -58,18 +58,47 @@
     inp.oninput = function () { if (composing) return; clearTimeout(timer); timer = setTimeout(run, 180); };
   }
 
+  function renderFav(main) {
+    UI.header({ title: '我的收藏', sub: '教材卡片', back: true, backTo: '#/me' });
+    var ids = Object.keys(Z.store.fav).filter(function (id) { return Z.matBy[id] || Z.kpBy[id]; });
+    var matIds = ids.filter(function (id) { return Z.matBy[id] && Z.matBy[id].kind !== 'group'; });
+    var kpIds = ids.filter(function (id) { return Z.kpBy[id]; });
+    var h = [];
+    if (!ids.length) {
+      h.push(UI.emptyBox('还没有收藏', '在教材卡片或知识要点里点「收藏」即可；刷题的题目收藏在刷题板块内'));
+    } else {
+      if (matIds.length) {
+        h.push('<div class="tiny dim" style="margin:2px 4px 6px">教材卡片 · ' + matIds.length + ' 张</div>');
+        h.push('<div class="card flat" style="padding:2px 0">' + matIds.map(function (id) {
+          var e = Z.matBy[id], ch = Z.chapterById(e.chapterId);
+          return '<div class="er" style="cursor:default"><a class="er-nm" href="#/entry/' + id + '" style="text-decoration:none;color:inherit">' +
+            esc(e.name) + '<span class="tiny dim"> ' + esc(ch ? ch.no : '') + '</span></a>' +
+            '<button class="btn xs danger" data-uf="' + id + '">取消</button></div>';
+        }).join('') + '</div>');
+      }
+      if (kpIds.length) {
+        h.push('<div class="tiny dim" style="margin:12px 4px 6px">知识要点 · ' + kpIds.length + ' 条</div>');
+        h.push('<div class="card flat" style="padding:2px 0">' + kpIds.map(function (id) {
+          var it = Z.kpBy[id];
+          return '<div class="er" style="cursor:default"><a class="er-nm" href="#/kpi/' + id + '" style="text-decoration:none;color:inherit">' +
+            esc(it.title) + '</a><button class="btn xs danger" data-uf="' + id + '">取消</button></div>';
+        }).join('') + '</div>');
+      }
+    }
+    main.innerHTML = h.join('');
+    main.querySelectorAll('[data-uf]').forEach(function (b) {
+      b.onclick = function () { Z.toggleFav(b.getAttribute('data-uf')); UI.render(); };
+    });
+  }
+
   function renderMe(main) {
     UI.header({ title: '我的' });
-    var wrong = Z.wrongList().length, favQ = Z.favQList().length, notes = Object.keys(Z.store.qnotes).length;
+    var favN = Object.keys(Z.store.fav).length;
     var h = ['<div class="card me-card"><div class="me-av">药</div><div class="grow"><div class="me-nm">药理学</div>' +
       '<div class="tiny dim">v' + esc(VER.web) + ' · ' + Z.MAT.stats.entries + ' 条教材 · ' + Z.QZ.stats.questions + ' 题</div></div></div>'];
     h.push('<div class="card list">' +
-      '<a class="li" href="#/quiz"><span class="li-ic">' + icon('chart') + '</span><span class="grow"><span class="li-t">错题本</span>' +
-      '<span class="li-s">' + wrong + ' 题（答错的题自动收集）</span></span><span class="at-go">›</span></a>' +
-      '<a class="li" href="#/quiz?t=fav"><span class="li-ic">' + icon('star') + '</span><span class="grow"><span class="li-t">收藏</span>' +
-      '<span class="li-s">收藏题 ' + favQ + ' · 收藏卡片 ' + Object.keys(Z.store.fav).length + '</span></span><span class="at-go">›</span></a>' +
-      '<a class="li" href="#/quiz"><span class="li-ic">' + icon('note') + '</span><span class="grow"><span class="li-t">题目笔记</span>' +
-      '<span class="li-s">' + notes + ' 条</span></span><span class="at-go">›</span></a></div>');
+      '<a class="li" href="#/fav"><span class="li-ic">' + icon('star') + '</span><span class="grow"><span class="li-t">教材卡片收藏</span>' +
+      '<span class="li-s">' + favN + ' 张（题目收藏在「刷题」板块内）</span></span><span class="at-go">›</span></a></div>');
     h.push('<div class="card list">' +
       '<div class="li"><span class="li-ic">' + icon('refresh') + '</span><span class="grow"><span class="li-t">检查更新</span>' +
       '<span class="li-s" id="upd-msg">点右侧按钮检查</span></span><button class="btn xs" id="upd-btn">检查</button></div>' +
@@ -166,6 +195,7 @@
   }
 
   UI.VIEWS.home = renderHome;
+  UI.VIEWS.fav = renderFav;
   UI.VIEWS.search = renderSearch;
   UI.VIEWS.me = renderMe;
   UI.VIEWS.about = renderAbout;

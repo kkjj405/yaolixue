@@ -125,6 +125,56 @@
     return out.join('\n');
   }
 
+  /* ---------------- 编辑：文本 ↔ 块 ---------------- */
+  function mdToBlocks(txt) {
+    var blocks = [];
+    String(txt || "").split(/\r?\n/).forEach(function (line) {
+      var t = line.trim();
+      if (!t) return;
+      if (/^\|/.test(t)) {
+        var cells = t.replace(/^\|/, "").replace(/\|$/, "").split("|").map(function (c) { return c.trim(); });
+        if (cells.every(function (c) { return /^:?-{2,}:?$/.test(c) || c === ""; })) return;
+        var last = blocks[blocks.length - 1];
+        if (last && last.t === "table" && !last._done) { last.head = cells; last._done = 1; }
+        else if (last && last.t === "table") { last.rows.push(cells); }
+        else blocks.push({ t: "table", head: cells, rows: [] });
+        return;
+      }
+      var m = t.match(/^\*\*(.+)\*\*$/);
+      if (m) { blocks.push({ t: "h", lv: 5, x: m[1] }); return; }
+      if (/^\d+[.．、)]/.test(t)) { blocks.push({ t: "ol", items: [t] }); return; }
+      if (/^[-*]\s+/.test(t)) { blocks.push({ t: "ul", items: [t.replace(/^[-*]\s+/, "")] }); return; }
+      if (/^>/.test(t)) { blocks.push({ t: "q", x: t.replace(/^>\s?/, "") }); return; }
+      blocks.push({ t: "p", x: t });
+    });
+    blocks.forEach(function (b) { delete b._done; });
+    return blocks;
+  }
+  function splitSections(blocks) {
+    var secs = [], cur = { title: "", blocks: [] };
+    (blocks || []).forEach(function (b) {
+      if (b.t === "h") { if (cur.title || cur.blocks.length) secs.push(cur); cur = { title: b.x, blocks: [] }; }
+      else cur.blocks.push(b);
+    });
+    if (cur.title || cur.blocks.length) secs.push(cur);
+    return secs;
+  }
+  function joinSections(secs) {
+    var out = [];
+    secs.forEach(function (sec) {
+      if (sec.title) out.push({ t: "h", lv: 5, x: sec.title });
+      (sec.blocks || []).forEach(function (b) { out.push(b); });
+    });
+    return out;
+  }
+
+  /* ---------------- 知识要点（含编辑） ---------------- */
+  function viewKp(it) {
+    var ed = store.edits[it.id] || {};
+    return { id: it.id, title: it.title, no: it.no, chapterId: it.chapterId,
+      blocks: ed.blocks || it.blocks, hasEdit: !!ed.blocks };
+  }
+
   /* ---------------- 教材卡片 ---------------- */
   function viewEntry(e) {
     var ed = store.edits[e.id] || {};
@@ -215,6 +265,7 @@
     store: store, save: save, persist: persist,
     esc: esc, inline: inline, shuffle: shuffle, nowText: nowText, clip: clip,
     renderRich: renderRich, blocksText: blocksText,
+    mdToBlocks: mdToBlocks, splitSections: splitSections, joinSections: joinSections, viewKp: viewKp,
     viewEntry: viewEntry, entryExists: entryExists, chapterById: chapterById, sectionById: sectionById,
     entryList: entryList, navEntry: navEntry,
     kpList: kpList, navKp: navKp,

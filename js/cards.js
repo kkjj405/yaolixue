@@ -164,10 +164,15 @@
         '<p class="small muted">隐藏后目录里显示删除线，翻页跳过。</p><div class="p-ft"><button class="btn sm primary" data-pc="hide-do">' +
         (Z.isHidden(v.id) ? '取消隐藏' : '确认隐藏') + '</button></div></div>';
     } else {
-      html = '<div class="panel"><div class="p-hd"><span>编辑本条内容</span><button class="btn xs ghost" data-pc="close">收起</button></div>' +
-        '<p class="tiny dim">按「一行一段」编辑；以 **…** 包起来的一行会显示为小标题；| a | b | 形式会显示为表格。仅本机生效。</p>' +
-        '<textarea class="textarea" id="edit-txt" style="min-height:240px">' + esc(Z.blocksText(v.blocks)) + '</textarea>' +
-        '<div class="p-ft"><button class="btn sm" data-pc="edit-reset">恢复原文</button><button class="btn sm primary" data-pc="edit-save">保存</button></div></div>';
+      var secs = Z.splitSections(v.blocks);
+      var body = secs.map(function (sec, i) {
+        return '<div class="ef"><label>' + (sec.title ? esc(sec.title) : (i === 0 ? '开头（无小标题部分）' : '第 ' + (i + 1) + ' 段')) +
+          '</label><textarea class="textarea ef-ta" data-sec="' + i + '">' + esc(Z.blocksText(sec.blocks)) + '</textarea></div>';
+      }).join('');
+      html = '<div class="panel"><div class="p-hd"><span>编辑内容</span><button class="btn xs ghost" data-pc="close">收起</button></div>' +
+        '<p class="tiny dim">按原文结构分段编辑（每段一行一段；<b>| a | b |</b> 会显示为表格）；标题行不可改。仅本机生效，可恢复原文。</p>' +
+        body + '<div class="p-ft"><button class="btn sm" data-pc="edit-reset">恢复原文</button>' +
+        '<button class="btn sm primary" data-pc="edit-save">保存修改</button></div></div>';
     }
     host.innerHTML = html;
     host.querySelectorAll('[data-pc="close"]').forEach(function (b) { b.onclick = function () { host.innerHTML = ''; }; });
@@ -183,30 +188,22 @@
     if (er) er.onclick = function () { delete Z.store.edits[v.id]; Z.save(true); UI.toast('已恢复原文'); UI.render(); };
     var es = host.querySelector('[data-pc="edit-save"]');
     if (es) es.onclick = function () {
-      var txt = host.querySelector('#edit-txt').value;
-      var blocks = [];
-      txt.split(/\r?\n/).forEach(function (line) {
-        var s = line.trim();
-        if (!s) return;
-        if (/^\|/.test(s)) {
-          var cells = s.replace(/^\|/, '').replace(/\|$/, '').split('|').map(function (c) { return c.trim(); });
-          if (/^-+$/.test(cells.join(''))) return;
-          var last = blocks[blocks.length - 1];
-          if (last && last.t === 'table') { if (!last._head) last._head = last.head, last.head = cells; else last.rows.push(cells); }
-          else blocks.push({ t: 'table', head: cells, rows: [] });
-          return;
-        }
-        var m = s.match(/^\*\*(.+)\*\*$/);
-        if (m) blocks.push({ t: 'h', lv: 5, x: m[1] });
-        else if (/^\d+[.．、)]/.test(s)) blocks.push({ t: 'ol', items: [s] });
-        else if (/^[-*]\s+/.test(s)) blocks.push({ t: 'ul', items: [s.replace(/^[-*]\s+/, '')] });
-        else blocks.push({ t: 'p', x: s });
+      var secs = Z.splitSections(v.blocks), out = [];
+      var changed = false;
+      host.querySelectorAll('.ef-ta').forEach(function (ta) {
+        var i = +ta.getAttribute('data-sec');
+        var nb = Z.mdToBlocks(ta.value);
+        var orig = Z.blocksText(secs[i].blocks).trim();
+        if ((ta.value || '').trim() !== orig) changed = true;
+        out.push({ title: secs[i].title, blocks: nb });
       });
-      Z.store.edits[v.id] = { blocks: blocks };
-      Z.save(true); UI.toast('已保存（仅本机）'); UI.render();
+      if (!changed) { UI.toast('没有改动'); return; }
+      Z.store.edits[v.id] = { blocks: Z.joinSections(out) };
+      Z.save(true); UI.toast('已保存（仅本机）'); host.innerHTML = ''; UI.render();
     };
   }
 
+  Z.entryEditPanel = openPanel;
   UI.VIEWS.mat = renderMat;
   UI.VIEWS.entry = renderEntry;
 })();

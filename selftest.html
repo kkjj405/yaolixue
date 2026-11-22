@@ -51,16 +51,15 @@
         ok('答题页渲染题干', !!document.querySelector('.q-stem'), document.querySelector('.q-stem') ? 'ok' : 'no');
         var opt = document.querySelector('[data-opt]');
         if (opt) { opt.click(); }
-        var sb = document.querySelector('#q-submit');
-        ok('选项可选中', !!document.querySelector('.q-opt.chosen'));
-        if (sb) sb.click();
         var s = Z.store.sessions.cur;
-        ok('提交后判题', s && Object.keys(s.judged).length === 1, s ? JSON.stringify(s.judged) : 'no');
+        ok('点选项即判题', s && Object.keys(s.judged).length === 1, s ? JSON.stringify(s.judged) : 'no');
+        ok('无交卷按钮', document.getElementById('main').textContent.indexOf('交卷') < 0);
+        ok('显示正确答案', document.getElementById('main').textContent.indexOf('正确答案') >= 0);
         var qid = s.order[0], q0 = Z.qBy[qid];
         ok('错题/记录写入', q0 && (s.judged[qid] === 1 ? !!Z.store.done[qid] : !!Z.store.wrong[qid]));
         // 答题卡
-        var grid = document.querySelectorAll('#q-drawer .gc');
-        ok('答题卡按钮=题数（抽屉关闭时不渲染则不判）', true);
+        location.hash = '#/qcard/' + Z.qBy[s.order[0]].chapterId; UI.render();
+        ok('章答题卡渲染题目格子', document.querySelectorAll('[data-jq]').length > 0, document.querySelectorAll('[data-jq]').length);
         // 收藏/笔记
         delete Z.store.sessions.cur; Z.save(true);
         location.hash = '#/qrun'; UI.render();
