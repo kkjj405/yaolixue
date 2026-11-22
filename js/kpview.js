@@ -6,26 +6,45 @@
 
   function renderKp(main) {
     UI.header({ title: '知识要点', sub: Z.KP.stats.chapters + ' 章 · ' + Z.KP.stats.items + ' 条' });
-    var h = [];
-    h.push('<div class="card flat"><p class="small muted" style="margin:0">按章集中的知识点：思维导图 ' +
-      Z.KP.stats.images + ' 张、表格 ' + Z.KP.stats.tables + ' 个。点章节查看。</p></div>');
-    (Z.KP.chapters || []).forEach(function (c) {
-      var items = c.itemIds.length;
-      h.push('<div class="chap open" data-kpchap="' + c.id + '"><div class="chap-hd"><span class="cn">' +
-        esc(c.no) + '　' + esc(c.name) + '</span><span class="chip gray tiny">' + items + ' 条</span></div><div class="chap-bd">' +
-        c.itemIds.map(function (id) {
-          var it = Z.kpBy[id];
-          var nb = (it.blocks || []).filter(function (b) { return b.t === 'img'; }).length;
-          var nt = (it.blocks || []).filter(function (b) { return b.t === 'table'; }).length;
-          return '<a class="er" href="#/kpi/' + it.id + '"><span class="er-kind kp">要</span><span class="er-nm">' +
-            esc(it.title) + '</span>' + (nb ? '<span class="flag" title="含导图">◈' + nb + '</span>' : '') +
-            (nt ? '<span class="flag" title="含表格">▦' + nt + '</span>' : '') +
-            (Z.isFav(id) ? '<span class="flag gold">☆</span>' : '') + '</a>';
-        }).join('') + '</div></div>');
+    var h = ['<div class="card flat"><p class="small muted" style="margin:0">按章看全：导图 ' +
+      Z.KP.stats.images + ' 张、表格 ' + Z.KP.stats.tables + ' 个，点章节进入。</p></div>'];
+    (Z.KP.chapters || []).forEach(function (c, i) {
+      var imgs = 0, tabs = 0;
+      c.itemIds.forEach(function (id) {
+        var it = Z.kpBy[id] || {};
+        (it.blocks || []).forEach(function (b) { if (b.t === 'img') imgs++; if (b.t === 'table') tabs++; });
+      });
+      h.push('<a class="kp-chap" href="#/kpch/' + c.id + '"><span class="kc-no">' + (i + 1) + '</span>' +
+        '<span class="kc-bd"><span class="kc-t">' + esc(c.name) + '</span>' +
+        '<span class="kc-s">' + c.itemIds.length + ' 条' + (imgs ? ' · 导图 ' + imgs : '') + (tabs ? ' · 表 ' + tabs : '') + '</span></span>' +
+        '<span class="at-go">›</span></a>');
     });
     main.innerHTML = h.join('');
-    main.querySelectorAll('[data-kpchap] .chap-hd').forEach(function (hd) {
-      hd.onclick = function () { hd.closest('[data-kpchap]').classList.toggle('open'); };
+    bindImgs(main);
+  }
+
+  function bindImgs(main) {
+    main.querySelectorAll('.rich-img img').forEach(function (img) {
+      img.onclick = function () { UI.lightbox(img.getAttribute('src')); };
+    });
+  }
+
+  function renderKpChapter(main, p) {
+    var c = (Z.KP.chapters || []).filter(function (x) { return x.id === p[0]; })[0];
+    if (!c) { main.innerHTML = UI.emptyBox('章节不存在'); return; }
+    UI.header({ title: c.name, sub: '知识要点', back: true, backTo: '#/kp' });
+    var h = [];
+    c.itemIds.forEach(function (id) {
+      var it = Z.kpBy[id];
+      h.push('<div class="card kp-item" id="kp-' + it.id + '"><div class="kp-hd"><span class="kp-no">' + (it.no || '') +
+        '</span><span class="kp-t">' + esc(it.title) + '</span>' +
+        '<button class="btn xs ghost" data-kpfav="' + it.id + '">' + (Z.isFav(it.id) ? '★ 已藏' : '☆ 收藏') + '</button></div>' +
+        '<div class="rich">' + Z.renderRich(it.blocks) + '</div></div>');
+    });
+    main.innerHTML = h.join('');
+    bindImgs(main);
+    main.querySelectorAll('[data-kpfav]').forEach(function (b) {
+      b.onclick = function () { Z.toggleFav(b.getAttribute('data-kpfav')); UI.render(); };
     });
   }
 
@@ -50,6 +69,7 @@
     });
     main.querySelector('#k-prev').onclick = function () { if (prev) UI.replaceHash('#/kpi/' + prev); };
     main.querySelector('#k-next').onclick = function () { if (next) UI.replaceHash('#/kpi/' + next); };
+    bindImgs(main);
     main.querySelectorAll('[data-act]').forEach(function (b) {
       b.onclick = function () {
         var k = b.getAttribute('data-act');
@@ -66,5 +86,6 @@
   }
 
   UI.VIEWS.kp = renderKp;
+  UI.VIEWS.kpch = renderKpChapter;
   UI.VIEWS.kpi = renderKpi;
 })();

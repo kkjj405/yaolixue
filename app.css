@@ -648,3 +648,18 @@ textarea.input{resize:vertical; min-height:88px}
 .ec-grp.lv1{font-size:12.5px;font-weight:700;color:var(--brown-d);margin-top:8px}
 .ec-grp.lv2{font-size:11.8px;font-weight:600;color:var(--brown);margin-top:5px}
 .ec-grp.lv3{font-size:11.2px;font-weight:600;color:var(--ink-3);margin-top:4px}
+
+/* 知识要点：章列表 + 整章页 */
+.kp-chap{display:flex;align-items:center;gap:10px;padding:11px 14px;border-bottom:1px solid var(--line);
+  text-decoration:none;color:var(--ink);background:var(--card)}
+.kp-chap:last-child{border-bottom:0}
+.kc-no{flex:0 0 26px;height:26px;border-radius:8px;background:var(--brown);color:#fff;font-size:12px;
+  display:inline-flex;align-items:center;justify-content:center}
+.kc-bd{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.kc-t{font-size:14.5px;font-weight:600}
+.kc-s{font-size:11.5px;color:var(--ink-3)}
+.kp-item{margin-bottom:10px}
+.kp-hd{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.kp-no{flex:0 0 22px;height:22px;border-radius:7px;background:var(--brown-l);color:var(--brown-d);
+  font-size:12px;font-weight:700;display:inline-flex;align-items:center;justify-content:center}
+.kp-t{flex:1;font-weight:700;color:var(--brown-d);font-size:15px}

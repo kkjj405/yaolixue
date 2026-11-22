@@ -79,7 +79,7 @@
   }
 
   var TAB_OF = {
-    home: 'home', mat: 'mat', entry: 'mat', kp: 'kp', kpi: 'kp',
+    home: 'home', mat: 'mat', entry: 'mat', kp: 'kp', kpch: 'kp', kpi: 'kp',
     quiz: 'quiz', qrun: 'quiz', qres: 'quiz', wrong: 'quiz', qfav: 'quiz',
     search: 'home', me: 'me', about: 'me', tip: 'me'
   };

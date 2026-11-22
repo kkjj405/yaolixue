@@ -31,7 +31,8 @@
       ok('含导图卡片渲染 img', !!document.querySelector('.rich-img img'));
 
       location.hash = '#/kp'; UI.render();
-      ok('知识点目录 42 章', document.querySelectorAll('[data-kpchap]').length === 42, document.querySelectorAll('[data-kpchap]').length);
+      ok('知识点目录 42 章（连续序号）', document.querySelectorAll('.kp-chap').length === 42 &&
+        document.querySelectorAll('.kc-no')[0].textContent === '1', document.querySelectorAll('.kp-chap').length);
       var kpWithImg = Z.KP.items.filter(function (i) { return i.blocks.some(function (b) { return b.t === 'img'; }); })[0];
       location.hash = '#/kpi/' + kpWithImg.id; UI.render();
       ok('知识点导图渲染', !!document.querySelector('.rich-img img'));

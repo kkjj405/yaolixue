@@ -69,13 +69,20 @@
   function clip(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n) + '…' : s; }
 
   /* ---------------- 富文本块 → HTML ---------------- */
+  function cellHTML(s) {
+    var x = inline(String(s == null ? '' : s));
+    x = x.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
+    x = x.replace(/&lt;\/?(sub|sup)&gt;/gi, '');
+    x = x.replace(/<\s*br\s*\/?>/gi, '<br>');
+    return x;
+  }
   function tableHTML(bl) {
     var h = ['<div class="tbl-wrap"><table><thead><tr>'];
-    (bl.head || []).forEach(function (c) { h.push('<th>' + inline(c) + '</th>'); });
+    (bl.head || []).forEach(function (c) { h.push('<th>' + cellHTML(c) + '</th>'); });
     h.push('</tr></thead><tbody>');
     (bl.rows || []).forEach(function (r) {
       h.push('<tr>');
-      r.forEach(function (c, ci) { h.push('<td' + (ci === 0 ? ' class="fc"' : '') + '>' + inline(c) + '</td>'); });
+      r.forEach(function (c, ci) { h.push('<td' + (ci === 0 ? ' class="fc"' : '') + '>' + cellHTML(c) + '</td>'); });
       h.push('</tr>');
     });
     h.push('</tbody></table></div>');
