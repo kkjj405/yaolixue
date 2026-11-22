@@ -698,3 +698,8 @@ textarea.input{resize:vertical; min-height:88px}
 .ann-i{display:flex;gap:8px;font-size:13px;line-height:1.65;color:var(--ink-2);margin:6px 0}
 .ann-n{flex:0 0 18px;height:18px;border-radius:6px;background:var(--brown-l);color:var(--brown-d);
   font-size:11px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;margin-top:2px}
+
+/* 刷题：状态 chip / 题型批量重做 */
+.ok-chip{background:var(--green-l);border-color:var(--green);color:var(--green)}
+.bad-chip{background:#fbeeed;border-color:var(--red);color:var(--red)}
+.qchap-bd .btn.xs{margin-bottom:0}

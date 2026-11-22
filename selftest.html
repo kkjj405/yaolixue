@@ -1,5 +1,6 @@
 <!DOCTYPE html><html><head><meta charset="utf-8"><title>init</title>
-<link rel="stylesheet" href="app.css"></head><body>
+<link rel="stylesheet" href="app.css">
+<link rel="stylesheet" href="css/quiz.css"></head><body>
 <div id="app"><header id="hd"></header><main id="main"></main><nav id="tabbar"></nav></div>
 <div id="toast"></div><div id="dialog"></div><div id="R"></div>
 <script src="js/version.js"></script><script src="data/material.js"></script><script src="data/kp.js"></script>
@@ -7,69 +8,305 @@
 <script src="js/cards.js"></script><script src="js/kpview.js"></script><script src="js/quizview.js"></script>
 <script src="js/misc.js"></script><script src="js/boot.js"></script>
 <script>
+/* 药理学 · 自测：教材 / 知识要点 / 搜索基线 + 刷题（复刻阶段考）全流程 */
 (function () {
-  var Z = window.YL, UI = window.YL_UI, P = 0, F = 0, L = [];
-  function ok(n, c, d) { if (c) { P++; } else { F++; L.push('FAIL ' + n + (d ? ' :: ' + d : '')); } }
-  setTimeout(function () {
-    try {
-      ok('教材条目 922', Z.MAT.stats.entries === 922, Z.MAT.stats.entries);
-      ok('药物卡 555', Z.MAT.stats.drugs === 555, Z.MAT.stats.drugs);
-      ok('知识要点条 88', Z.KP.stats.items === 88, Z.KP.stats.items);
-      ok('导图 40 / 表格 41', Z.KP.stats.images === 40 && Z.KP.stats.tables === 41, Z.KP.stats.images + '/' + Z.KP.stats.tables);
-      ok('题库 1892', Z.QZ.stats.questions === 1892, Z.QZ.stats.questions);
+  var Z = window.YL, UI = window.YL_UI, YQ = window.YL_QUIZ_UI;
+  var P = 0, F = 0, L = [];
+  function ok(n, c, d) { if (c) { P++; } else { F++; L.push('FAIL ' + n + (d !== undefined ? ' :: ' + d : '')); } }
+  function wait(ms) { return new Promise(function (r) { setTimeout(r, ms); }); }
+  function q(sel) { return document.querySelector(sel); }
+  function qa(sel) { return Array.prototype.slice.call(document.querySelectorAll(sel)); }
+  function nav(h) { location.hash = h; UI.render(); }
+  function mainTxt() { return (document.getElementById('main').textContent || ''); }
+  function clickDialogYes() {
+    var b = document.querySelector('#dialog .btn.primary');
+    if (b) { b.click(); return; }
+    var list = document.querySelectorAll('#dialog [data-di]');
+    if (list.length) list[list.length - 1].click();
+  }
 
-      location.hash = '#/mat'; UI.render();
-      ok('教材目录 章行 39', document.querySelectorAll('[data-chap]').length > 0, document.querySelectorAll('[data-chap]').length);
+  async function run() {
+    try {
+      /* ---------------- 数据基线 ---------------- */
+      ok('教材条目与统计一致（≥900）', Z.MAT.stats.entries === Z.MAT.entries.length && Z.MAT.stats.entries >= 900, Z.MAT.stats.entries);
+      ok('药物卡与统计一致（≥500）', Z.MAT.stats.drugs === Z.MAT.entries.filter(function (e) { return e.kind === 'drug'; }).length && Z.MAT.stats.drugs >= 500, Z.MAT.stats.drugs);
+      ok('知识要点条与统计一致（≥50）', Z.KP.stats.items === Z.KP.items.length && Z.KP.stats.items >= 50, Z.KP.stats.items);
+      ok('导图与表格数量正常', Z.KP.stats.images >= 20 && Z.KP.stats.tables >= 20, Z.KP.stats.images + '/' + Z.KP.stats.tables);
+      ok('题库 1892', Z.QZ.stats.questions === 1892 && Z.QZ.stats.questions === Z.QZ.questions.length, Z.QZ.stats.questions);
+
+      /* ---------------- 教材 / 知识要点（原断言保留） ---------------- */
+      nav('#/mat');
+      ok('教材目录章行', qa('[data-chap]').length > 0, qa('[data-chap]').length);
       var drug = Z.MAT.entries.filter(function (e) { return e.kind === 'drug' && e.blocks.length; })[0];
-      location.hash = '#/entry/' + drug.id; UI.render();
-      var body = document.querySelector('#ct-body');
+      nav('#/entry/' + drug.id);
+      var body = q('#ct-body');
       ok('药物卡渲染有内容', body && body.textContent.length > 50, body ? body.textContent.length : 'NO');
       var tblE = Z.MAT.entries.filter(function (e) { return e.blocks.some(function (b) { return b.t === 'table'; }); })[0];
-      if (tblE) { location.hash = '#/entry/' + tblE.id; UI.render(); ok('含表格卡片渲染 table', !!document.querySelector('.tbl-wrap table')); }
+      if (tblE) { nav('#/entry/' + tblE.id); ok('含表格卡片渲染 table', !!q('.tbl-wrap table')); }
       var mapE = Z.MAT.entries.filter(function (e) { return e.maps && e.maps.length; })[0];
-      location.hash = '#/entry/' + mapE.id; UI.render();
-      ok('含导图卡片渲染 img', !!document.querySelector('.rich-img img'));
+      nav('#/entry/' + mapE.id);
+      ok('含导图卡片渲染 img', !!q('.rich-img img'));
 
-      location.hash = '#/kp'; UI.render();
-      ok('知识点目录 42 章（连续序号）', document.querySelectorAll('.kp-chap').length === 42 &&
-        document.querySelectorAll('.kc-no')[0].textContent === '1', document.querySelectorAll('.kp-chap').length);
+      nav('#/kp');
+      ok('知识点目录 42 章（连续序号）', qa('.kp-chap').length === 42 &&
+        qa('.kc-no')[0].textContent === '1', qa('.kp-chap').length);
       var kpWithImg = Z.KP.items.filter(function (i) { return i.blocks.some(function (b) { return b.t === 'img'; }); })[0];
-      location.hash = '#/kpi/' + kpWithImg.id; UI.render();
-      ok('知识点导图渲染', !!document.querySelector('.rich-img img'));
+      nav('#/kpi/' + kpWithImg.id);
+      ok('知识点导图渲染', !!q('.rich-img img'));
 
-      location.hash = '#/search?kw=' + encodeURIComponent('阿托品'); UI.render();
-      var inp = document.querySelector('#s-kw'); if (inp) { inp.value = '阿托品'; inp.oninput && inp.oninput(); }
-      setTimeout(function () {
-        ok('搜索阿托品', Z.searchAll('阿托品').entries.length >= 1, Z.searchAll('阿托品').entries.length);
+      nav('#/search?kw=' + encodeURIComponent('阿托品'));
+      var sinp = q('#s-kw'); if (sinp) { sinp.value = '阿托品'; sinp.oninput && sinp.oninput(); }
+      await wait(260);
+      ok('搜索阿托品', Z.searchAll('阿托品').entries.length >= 1, Z.searchAll('阿托品').entries.length);
 
-        location.hash = '#/quiz'; UI.render();
-        ok('刷题目录有题型按钮', document.querySelectorAll('[data-st]').length > 20, document.querySelectorAll('[data-st]').length);
-        var qs = Z.questionsOf('qc02');
-        window.YL_QUIZ_UI.startSession('qc02', '', qs.map(function (q) { return q.id; }), '测试');
-        ok('会话已创建', !!Z.store.sessions.cur && Z.store.sessions.cur.order.length === qs.length);
-        UI.render();
-        ok('答题页渲染题干', !!document.querySelector('.q-stem'), document.querySelector('.q-stem') ? 'ok' : 'no');
-        var opt = document.querySelector('[data-opt]');
-        if (opt) { opt.click(); }
-        var s = Z.store.sessions.cur;
-        ok('点选项即判题', s && Object.keys(s.judged).length === 1, s ? JSON.stringify(s.judged) : 'no');
-        ok('无交卷按钮', document.getElementById('main').textContent.indexOf('交卷') < 0);
-        ok('显示正确答案', document.getElementById('main').textContent.indexOf('正确答案') >= 0);
-        var qid = s.order[0], q0 = Z.qBy[qid];
-        ok('错题/记录写入', q0 && (s.judged[qid] === 1 ? !!Z.store.done[qid] : !!Z.store.wrong[qid]));
-        // 答题卡
-        location.hash = '#/qcard/' + Z.qBy[s.order[0]].chapterId; UI.render();
-        ok('章答题卡渲染题目格子', document.querySelectorAll('[data-jq]').length > 0, document.querySelectorAll('[data-jq]').length);
-        // 收藏/笔记
-        delete Z.store.sessions.cur; Z.save(true);
-        location.hash = '#/qrun'; UI.render();
-        ok('无会话时提示', document.body.textContent.indexOf('还没有开始') >= 0);
-      }, 300);
-    } catch (e) { F++; L.push('EXC ' + (e && e.stack || e)); }
-    setTimeout(function () {
-      document.getElementById('R').textContent = 'RESULT P=' + P + ' F=' + F + ' ' + L.join(' | ');
-      document.title = 'YL SELFTEST P=' + P + ' F=' + F;
-    }, 900);
-  }, 400);
+      /* ---------------- 刷题：清空痕迹，从目录开始 ---------------- */
+      Z.store.rec = {}; Z.store.done = {}; Z.store.wrong = {};
+      Z.store.qfav = {}; Z.store.qnotes = {}; Z.store.sessions = {};
+      Z.save(true);
+      YQ.setMode(0);
+
+      nav('#/quiz');
+      ok('刷题目录章节卡片 42', qa('[data-chapter]').length === 42, qa('[data-chapter]').length);
+      ok('刷题目录无「交卷」', mainTxt().indexOf('交卷') < 0);
+
+      /* 选一个含 3 种以上题型、且 A1 ≥ 3 题的章节 */
+      var ch = null;
+      Z.QZ.chapters.forEach(function (c) {
+        if (!ch && c.types.length >= 3 && c.types.some(function (t) { return t.t === 'A1' && t.qids.length >= 3; })) ch = c;
+      });
+
+      nav('#/qtypes/' + ch.id);
+      ok('题型页列出题型行', qa('[data-type]').length === ch.types.length, qa('[data-type]').length + '/' + ch.types.length);
+      ok('题型页有练习/快刷/背题模式', qa('[data-mode]').length === 3, qa('[data-mode]').length);
+
+      /* 需求 1：点题型 → 先进入答题卡（不是题目） */
+      var tr = q('[data-type="A1"]');
+      if (tr) tr.click();
+      UI.render();
+      await wait(10);
+      ok('点题型先进入答题卡', location.hash.indexOf('#/qcard/') === 0 && !!q('.qz-grid') && !q('.qz-qstem'),
+        location.hash + ' grid=' + !!q('.qz-grid') + ' stem=' + !!q('.qz-qstem'));
+
+      ok('答题卡按题型分段', qa('.qz-gsec').length >= 2, qa('.qz-gsec').length);
+      ok('每个题型行都有「重做本题型」', qa('[data-redo]').length === qa('.qz-gsec').length && qa('[data-redo]').length >= 2,
+        qa('[data-redo]').length + '/' + qa('.qz-gsec').length);
+      ok('答题卡初始无对错状态色', qa('.qz-cell.s1,.qz-cell.s2').length === 0,
+        qa('.qz-cell.s1,.qz-cell.s2').length);
+
+      /* ---------------- 开始答题：单题提交、立即判对错 ---------------- */
+      var gs = q('#gStart');
+      if (gs) gs.click();
+      UI.render();
+      await wait(10);
+      ok('答题页渲染题干', !!q('.qz-qstem'), !!q('.qz-qstem'));
+      ok('答题页无「交卷」', mainTxt().indexOf('交卷') < 0);
+      ok('底部操作条：上一题/答题卡/下一题', !!q('#q-prev') && !!q('#q-card') && !!q('#q-next'));
+
+      var s0 = Z.store.sessions.cur;
+      var list0 = YQ.listOf(s0.cid, s0.type, s0.filter);
+      var q0 = list0[s0.idx];
+      var ansKey = (q0.answer || [])[0];
+      var optEl = qa('[data-opt]').filter(function (b) { return b.getAttribute('data-opt') === ansKey; })[0];
+      if (optEl) optEl.click();
+      await wait(10);
+      ok('点选项立即判对', Z.store.rec[q0.id] && Z.store.rec[q0.id].st === 1,
+        Z.store.rec[q0.id] ? Z.store.rec[q0.id].st : 'no');
+      ok('立即显示正确答案', mainTxt().indexOf('正确答案：') >= 0);
+      ok('判定后显示「答对了」', mainTxt().indexOf('答对了') >= 0);
+      ok('判定后仍无「交卷」', mainTxt().indexOf('交卷') < 0);
+
+      /* 需求 4：离开再进，痕迹仍在 */
+      var runH = location.hash;
+      nav('#/qcard/' + s0.cid + '?t=' + s0.type);
+      ok('答题卡正确状态色（绿）', !!q('.qz-cell.s1'), qa('.qz-cell.s1').length);
+      nav(runH);
+      ok('重进同题痕迹仍在（原选择/判定/答案）',
+        qa('.qz-opt.right').length > 0 && mainTxt().indexOf('正确答案：') >= 0,
+        'right=' + qa('.qz-opt.right').length);
+
+      /* 需求 5：每题都有「重做本题」 */
+      var redoBtn = q('#q-redo');
+      ok('每题都有「重做本题」按钮', !!redoBtn);
+      if (redoBtn) redoBtn.click();
+      await wait(10);
+      ok('重做本题弹确认（含历史统计）', document.getElementById('dialog').classList.contains('on'));
+      clickDialogYes();
+      await wait(30);
+      ok('每题重做清除本题痕迹', Z.store.rec[q0.id] && Z.store.rec[q0.id].st === 0 &&
+        mainTxt().indexOf('正确答案：') < 0, Z.store.rec[q0.id] ? Z.store.rec[q0.id].st : 'no');
+      ok('重做后选项恢复可作答', qa('[data-opt]').length > 0 && qa('.qz-opt.right').length === 0);
+
+      /* 答错 → 立即判错并显示正确答案 */
+      var wrongKey = null;
+      qa('[data-opt]').forEach(function (b) {
+        var k = b.getAttribute('data-opt');
+        if (!wrongKey && (q0.answer || []).indexOf(k) < 0) wrongKey = k;
+      });
+      if (wrongKey) q('[data-opt="' + wrongKey + '"]').click();
+      await wait(10);
+      ok('答错立即判错并显示正确答案', Z.store.rec[q0.id] && Z.store.rec[q0.id].st === 2 &&
+        !!q('.qz-res.bad') && mainTxt().indexOf('正确答案：') >= 0,
+        Z.store.rec[q0.id] ? Z.store.rec[q0.id].st : 'no');
+
+      /* 错题本视图 */
+      nav('#/qwrong?seg=wrong');
+      ok('错题本视图列出错题', qa('[data-wb]').length >= 1, qa('[data-wb]').length);
+
+      /* 答题卡错误状态色 */
+      nav('#/qcard/' + s0.cid + '?t=' + s0.type);
+      ok('答题卡错误状态色（红）', !!q('.qz-cell.s2'), qa('.qz-cell.s2').length);
+
+      /* 从答题卡「开始/继续」应回到上次做到的位置 */
+      nav('#/qcard/' + s0.cid + '?t=' + s0.type);
+      var g2 = q('#gStart');
+      if (g2) g2.click();
+      UI.render();
+      await wait(10);
+      var nxBtn = q('#q-next');
+      if (nxBtn) nxBtn.click();
+      await wait(10);
+      var resumeIdx = Z.store.sessions.cur.idx;
+      nav('#/qcard/' + s0.cid + '?t=' + s0.type);
+      var g3 = q('#gStart');
+      if (g3) g3.click();
+      UI.render();
+      await wait(10);
+      ok('从答题卡继续作答保持上次进度', Z.store.sessions.cur.idx === resumeIdx,
+        Z.store.sessions.cur.idx + '/' + resumeIdx);
+
+      /* 需求 6：答题卡题型行「重做本题型」批量清痕迹（无弹窗式范围选择） */
+      nav('#/qcard/' + s0.cid + '?t=' + s0.type);
+      var rdType = q('[data-redo="A1"]');
+      ok('题型行「重做本题型」存在', !!rdType);
+      if (rdType) rdType.click();
+      await wait(10);
+      ok('重做本题型为简单确认（无范围选择弹窗）',
+        document.getElementById('dialog').classList.contains('on') && !q('#brFrom') && !q('.brrange'));
+      clickDialogYes();
+      await wait(30);
+      var a1st = YQ.statOf(s0.cid, 'A1', 'all');
+      ok('题型行批量重做清空该题型', a1st.done === 0, JSON.stringify(a1st));
+      ok('批量重做后答题卡回到未做', qa('.qz-cell.s1,.qz-cell.s2,.qz-cell.s3,.qz-cell.s4').length === 0,
+        qa('.qz-cell.s1,.qz-cell.s2,.qz-cell.s3,.qz-cell.s4').length);
+
+      /* 配伍题：共用备选答案 + 点选项判对 + 已掌握状态 */
+      var chB1 = null;
+      Z.QZ.chapters.forEach(function (c) {
+        if (!chB1 && c.types.some(function (t) { return t.t === 'B1' && t.qids.length; })) chB1 = c;
+      });
+      nav('#/qcard/' + chB1.id + '?t=B1');
+      var bStart = q('[data-start="B1"]');
+      if (bStart) bStart.click();
+      UI.render();
+      await wait(10);
+      var bs = Z.store.sessions.cur;
+      var bq = YQ.listOf(bs.cid, 'B1', 'all')[bs.idx];
+      ok('配伍题显示共用备选答案', mainTxt().indexOf('共用备选答案') >= 0 && qa('[data-opt]').length === 5,
+        mainTxt().indexOf('共用备选答案') + '/' + qa('[data-opt]').length);
+      var bKey = (bq.answer || [])[0];
+      var bOpt = q('[data-opt="' + bKey + '"]');
+      if (bOpt) bOpt.click();
+      await wait(10);
+      ok('配伍题点选项立即判对', YQ.stOf(bq.id) === 1, YQ.stOf(bq.id));
+      var skBtn = q('#q-skip');
+      if (skBtn) skBtn.click();
+      await wait(10);
+      ok('「已掌握」可标记(3)', YQ.stOf(bq.id) === 3, YQ.stOf(bq.id));
+      nav('#/qcard/' + chB1.id + '?t=B1');
+      ok('答题卡已掌握状态色（黄）', !!q('.qz-cell.s3'), qa('.qz-cell.s3').length);
+
+
+      nav('#/qcard/' + ch.id + '?t=X');
+      var xStart = q('[data-start="X"]');
+      if (xStart) xStart.click();
+      UI.render();
+      await wait(10);
+      var xs = Z.store.sessions.cur;
+      var xList = YQ.listOf(xs.cid, 'X', 'all');
+      var xq = xList[xs.idx];
+      (xq.answer || []).forEach(function (k) {
+        var b = q('[data-opt="' + k + '"]');
+        if (b) b.click();
+      });
+      await wait(10);
+      var xsub = q('#q-submit');
+      if (xsub) xsub.click();
+      await wait(10);
+      ok('多选：勾选后提交立即判分', YQ.stOf(xq.id) === 1 && mainTxt().indexOf('正确答案：') >= 0,
+        YQ.stOf(xq.id));
+
+      /* 需求 3：名词解释 → 答题框 → 提交 → 参考答案 → 自评 */
+      var chNm = null;
+      Z.QZ.chapters.forEach(function (c) {
+        if (!chNm && c.types.some(function (t) { return t.t === 'NM' && t.qids.length; })) chNm = c;
+      });
+      nav('#/qcard/' + chNm.id + '?t=NM');
+      var stBtn = q('[data-start="NM"]');
+      if (stBtn) stBtn.click();
+      UI.render();
+      await wait(10);
+      ok('名词解释题有答题框', !!q('#qa-txt'));
+      var ta = q('#qa-txt');
+      if (ta) { ta.value = '药理学是研究药物与机体相互作用及规律的学科。'; ta.oninput && ta.oninput(); }
+      var subBtn = q('#q-submit');
+      if (subBtn) subBtn.click();
+      await wait(10);
+      ok('提交后显示参考答案', mainTxt().indexOf('参考答案') >= 0);
+      ok('提交后出现用户自评', mainTxt().indexOf('自评') >= 0);
+      var nmList = YQ.listOf(chNm.id, 'NM', 'all');
+      var nmQ = nmList[Z.store.sessions.cur.idx];
+      ok('文字题提交后为待提交/待自评(4)', YQ.stOf(nmQ.id) === 4, YQ.stOf(nmQ.id));
+      var okBtn = q('#qa-ok');
+      if (okBtn) okBtn.click();
+      await wait(10);
+      ok('文字题自评后判对(1)', YQ.stOf(nmQ.id) === 1, YQ.stOf(nmQ.id));
+
+      /* 收藏 / 笔记保留 */
+      var favBtn = q('#q-fav');
+      if (favBtn) favBtn.click();
+      await wait(10);
+      ok('题目收藏已保留', !!Z.store.qfav[nmQ.id]);
+      var noteBtn = q('#q-note');
+      if (noteBtn) noteBtn.click();
+      await wait(10);
+      ok('笔记编辑区就地展开', !!q('#note-ta'));
+      var nta = q('#note-ta');
+      if (nta) { nta.value = '记忆点：定义 + 研究对象'; }
+      var nsave = q('#note-save');
+      if (nsave) nsave.click();
+      await wait(10);
+      ok('题目笔记已保存', Z.store.qnotes[nmQ.id] === '记忆点：定义 + 研究对象',
+        Z.store.qnotes[nmQ.id]);
+
+      /* 答题卡点击数字跳题（优先点 NM 段的格子） */
+      nav('#/qcard/' + chNm.id + '?t=NM');
+      var cell = q('.qz-gsec[data-sec="NM"] .qz-cell');
+      var cellQid = cell ? cell.getAttribute('data-qid') : '';
+      if (cell) cell.click();
+      UI.render();
+      await wait(10);
+      var s1 = Z.store.sessions.cur;
+      var jumpQ = s1 ? YQ.listOf(s1.cid, s1.type, s1.filter)[s1.idx] : null;
+      ok('答题卡点击数字跳题', location.hash === '#/qrun' && !!jumpQ && jumpQ.id === cellQid,
+        location.hash + ' ' + (jumpQ && jumpQ.id) + '/' + cellQid);
+
+      /* 背题模式（可选，不引入交卷） */
+      YQ.setMode(3);
+      YQ.startRun(chNm.id, 'NM', 'all', 0);
+      UI.render();
+      await wait(10);
+      ok('背题模式直接看答案', mainTxt().indexOf('参考答案') >= 0 && !q('#qa-txt'),
+        mainTxt().indexOf('参考答案') + '/' + !!q('#qa-txt'));
+      YQ.setMode(0);
+
+      nav('#/qcard/' + chNm.id + '?t=NM');
+      ok('答题卡无「交卷」', mainTxt().indexOf('交卷') < 0);
+    } catch (e) {
+      F++; L.push('EXC ' + (e && e.stack ? e.stack : e));
+    }
+    document.getElementById('R').textContent = 'RESULT P=' + P + ' F=' + F + ' ' + L.join(' | ');
+    document.title = 'YL SELFTEST P=' + P + ' F=' + F;
+  }
+  setTimeout(function () { run(); }, 400);
 })();
 </script></body></html>

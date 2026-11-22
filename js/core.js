@@ -17,6 +17,7 @@
     qnotes: {},         // 题目笔记
     qfav: {},           // 题目收藏
     wrong: {},          // 错题本 {qid: 次数}
+    rec: {},            // 每题做题痕迹 {qid: {c: 选择/文字, s: 1对/0错}}
     done: {},           // 做题记录 {qid: {n:次数, ok:次数}}
     sessions: {},       // 未完成的刷题会话
     last: { entry: '', kp: '' },
@@ -230,6 +231,38 @@
     var x = a.slice().sort().join(''), y = b.slice().sort().join('');
     return x === y;
   }
+  /* ---------------- 做题痕迹（全局，答题卡与答题页共用） ---------------- */
+  function qRec(id) { return store.rec[id] || null; }
+  function setRec(id, chosen, ok) {
+    store.rec[id] = { c: chosen, s: ok ? 1 : 0, ts: Date.now() };
+    var d = store.done[id] || { n: 0, ok: 0 };
+    d.n++; if (ok) d.ok++;
+    store.done[id] = d;
+    if (!ok) store.wrong[id] = (store.wrong[id] || 0) + 1; else delete store.wrong[id];
+    save(true);
+  }
+  function clearRec(id) {
+    delete store.rec[id]; delete store.wrong[id]; delete store.done[id];
+    save(true);
+  }
+  function clearType(chapterId, type) {
+    var n = 0;
+    (QZ.questions || []).forEach(function (q) {
+      if ((!chapterId || q.chapterId === chapterId) && (!type || q.type === type) && store.rec[q.id]) {
+        delete store.rec[q.id]; delete store.wrong[q.id]; delete store.done[q.id]; n++;
+      }
+    });
+    save(true); return n;
+  }
+  function typeStats(chapterId, type) {
+    var list = questionsOf(chapterId, type), done = 0, right = 0;
+    list.forEach(function (q) {
+      var r = store.rec[q.id];
+      if (r) { done++; if (r.s === 1) right++; }
+    });
+    return { n: list.length, done: done, right: right };
+  }
+
   function wrongList() {
     return Object.keys(store.wrong).filter(function (id) { return qBy[id]; })
       .sort(function (a, b) { return (store.wrong[b] || 0) - (store.wrong[a] || 0) || (qBy[a].chapterId < qBy[b].chapterId ? -1 : 1); });
@@ -271,6 +304,7 @@
     kpList: kpList, navKp: navKp,
     questionsOf: questionsOf, qChapterOf: qChapterOf, isChoice: isChoice, optionsOf: optionsOf,
     sameAnswer: sameAnswer, wrongList: wrongList, favQList: favQList,
+    qRec: qRec, setRec: setRec, clearRec: clearRec, clearType: clearType, typeStats: typeStats,
     note: note, setNote: setNote, isFav: isFav, toggleFav: toggleFav,
     isHidden: isHidden, setHidden: setHidden, hiddenCount: hiddenCount,
     searchAll: searchAll
