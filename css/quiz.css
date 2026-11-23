@@ -200,3 +200,17 @@
 .qz-seg button{flex:1;border:0;background:transparent;padding:8px;border-radius:8px;
   font-size:13px;color:var(--ink-2);font-family:inherit;cursor:pointer}
 .qz-seg button.on{background:var(--card);color:var(--ink);font-weight:700;box-shadow:var(--sd)}
+
+/* ============ 自定义批量重做：选择模式 ============ */
+.qz-gbar{display:flex; gap:8px; align-items:center}
+.qz-gbar .qz-gbtn2{flex:0 0 auto}
+.qz-cell.sel{outline:3px solid var(--accent); outline-offset:-3px;
+  background:var(--accent-l) !important; color:#7d4f18 !important; font-weight:700;
+  box-shadow:inset 0 0 0 1px rgba(196,129,58,.35)}
+#main.sel-on .qz-cell{cursor:pointer}
+.qz-selbar{display:none; position:sticky; bottom:6px; z-index:6; margin-top:10px;
+  background:var(--card); border:1px solid var(--line-2); border-radius:12px;
+  box-shadow:var(--sd-2); padding:8px 10px; align-items:center; gap:8px}
+.qz-selbar.on{display:flex}
+.qz-seln{flex:1; font-size:13px; color:var(--ink-2)}
+.qz-seln b{color:var(--accent); font-size:16px; margin:0 2px}

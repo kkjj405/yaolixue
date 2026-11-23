@@ -8,12 +8,6 @@
   function chapEntries(chId) {
     return (Z.MAT.entries || []).filter(function (e) { return e.chapterId === chId; });
   }
-  /* 章/节概述（原书章标题下、第一个节标题前的正文；第七章这类「无节章」的引言也在里面） */
-  function introHTML(blocks, label) {
-    if (!blocks || !blocks.length) return '';
-    return '<details class="intro"><summary>' + label + '</summary><div class="rich">' +
-      Z.renderRich(blocks) + '</div></details>';
-  }
   function drugCount(chId) {
     return chapEntries(chId).filter(function (e) { return e.kind === 'drug'; }).length;
   }
@@ -50,10 +44,7 @@
         rows.push('<div class="chap' + (open ? ' open' : '') + '" data-chap="' + c.id + '"><div class="chap-hd">' +
           '<span class="cn">' + esc(c.no) + '　' + esc(c.name) + '</span>' +
           '<span class="chip gray tiny">' + drugCount(c.id) + ' 药</span></div><div class="chap-bd">');
-        if (open) {
-          if (!kw) rows.push(introHTML(c.introBlocks, '本章概述'));
-          rows.push(entriesHTML(c.id, kw));
-        }
+        if (open) rows.push(entriesHTML(c.id, kw));
         rows.push('</div></div>');
       });
       if (rows.length) {
@@ -74,7 +65,6 @@
       if (sec && sec.id !== curSec) {
         curSec = sec.id;
         out.push('<div class="ec-sec">' + esc(sec.no) + '　' + esc(sec.name) + '</div>');
-        if (!kw) out.push(introHTML(sec.introBlocks, '本节概述'));
       }
       var depth = (e.path || []).length;
       var ind = 14 + depth * 14;
@@ -84,7 +74,7 @@
       }
       var hid = Z.isHidden(e.id);
       out.push('<a class="er' + (hid ? ' hid' : '') + '" style="padding-left:' + ind + 'px" href="#/entry/' + e.id + '">' +
-        '<span class="er-kind ' + e.kind + '">' + (e.kind === 'drug' ? '药' : '概') + '</span>' +
+        '<span class="er-kind ' + e.kind + '">' + (e.kind === 'drug' ? '药' : e.kind === 'intro' ? '述' : '概') + '</span>' +
         '<span class="er-nm">' + esc(e.name) + (e.en ? ' <span class="tiny dim">' + esc(e.en) + '</span>' : '') + '</span>' +
         (e.maps && e.maps.length ? '<span class="flag" title="含导图">◈</span>' : '') +
         (Z.isFav(e.id) ? '<span class="flag gold">☆</span>' : '') + '</a>');
@@ -117,8 +107,8 @@
     h.push('<div class="card card-main"><div class="ct-hd"><div class="ct-name">' + esc(v.name) +
       (v.en ? '<span class="ct-en">' + esc(v.en) + '</span>' : '') + '</div>' +
       '<div class="ct-sub">' + esc(ch ? ch.no + ' ' + ch.name : '') + (sec ? ' · ' + esc(sec.name) : '') + '</div></div>');
-    h.push('<div class="meta-row"><span class="chip ' + (v.kind === 'drug' ? 'solid' : 'gray') + '">' +
-      (v.kind === 'drug' ? '药物' : '概念/概论') + '</span>' +
+    h.push('<div class="meta-row"><span class="chip ' + (v.kind === 'drug' ? 'solid' : v.kind === 'intro' ? 'gold' : 'gray') + '">' +
+      (v.kind === 'drug' ? '药物' : v.kind === 'intro' ? '概述' : '概念/概论') + '</span>' +
       (v.maps && v.maps.length ? '<span class="chip">含导图 ' + v.maps.length + ' 张</span>' : '') +
       '<span class="chip gray">' + (v.blocks || []).filter(function (b) { return b.t === 'table'; }).length + ' 表</span></div>');
     h.push('<div class="ct-body rich" id="ct-body">' + bodyHTML(v) + '</div>');
@@ -130,7 +120,7 @@
       '<div id="card-panel"></div></div>');
     var prev = Z.navEntry(v.id, -1), next = Z.navEntry(v.id, 1);
     h.push('<div class="pager-row"><button class="btn sm" id="e-prev"' + (prev ? '' : ' disabled') + '>‹ 上一条</button>' +
-      '<span class="tiny dim">' + (v.kind === 'drug' ? '药物卡' : '概念卡') + '</span>' +
+      '<span class="tiny dim">' + (v.kind === 'drug' ? '药物卡' : v.kind === 'intro' ? '概述卡' : '概念卡') + '</span>' +
       '<button class="btn sm" id="e-next"' + (next ? '' : ' disabled') + '>下一条 ›</button></div>');
     main.innerHTML = h.join('');
     Z.store.last.entry = v.id; Z.save();

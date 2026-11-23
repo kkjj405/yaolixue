@@ -1,8 +1,8 @@
 /* 药理学 · Service Worker（离线优先，全量预缓存）
- * 版本缓存：2.0.0
+ * 版本缓存：2.1.0
  * 资源清单由 build_pwa.py 自动生成，共 61 项。
  */
-const CACHE = 'yll-yaolixue-v2.0.0';
+const CACHE = 'yll-yaolixue-v2.1.0';
 const ASSETS = [
   "./app.css",
   "./index.html",

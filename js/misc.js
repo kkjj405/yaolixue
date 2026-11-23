@@ -99,8 +99,9 @@
         h.push('<div class="tiny dim" style="margin:2px 4px 6px">教材卡片 · ' + matIds.length + ' 张</div>');
         h.push('<div class="card flat" style="padding:2px 0">' + matIds.map(function (id) {
           var e = Z.matBy[id], ch = Z.chapterById(e.chapterId);
+          var ctx = e.kind === 'intro' ? (e.subName || '') : (ch ? ch.no : '');
           return '<div class="er" style="cursor:default"><a class="er-nm" href="#/entry/' + id + '" style="text-decoration:none;color:inherit">' +
-            esc(e.name) + '<span class="tiny dim"> ' + esc(ch ? ch.no : '') + '</span></a>' +
+            esc(e.name) + '<span class="tiny dim"> ' + esc(ctx) + '</span></a>' +
             '<button class="btn xs danger" data-uf="' + id + '">取消</button></div>';
         }).join('') + '</div>');
       }
@@ -211,7 +212,8 @@
     main.innerHTML = '<div class="card"><h3 class="serif" style="margin:0 0 10px">药理学 · 学习工具</h3>' +
       '<p class="small" style="line-height:1.75">内容基于《药理学》教材整理稿与《学习指导与习题集》整理稿。' +
       '仅供学习使用，不提供临床用药指导。' +
-      '教材卡片：' + ms.parts + ' 篇 ' + ms.chapters + ' 章 ' + cards + ' 张卡（药物 ' + ms.drugs + '、概念 ' + ms.topics + '）。' +
+      '教材卡片：' + ms.parts + ' 篇 ' + ms.chapters + ' 章 ' + cards + ' 张卡（药物 ' + ms.drugs + '、概念 ' + ms.topics + '），'
+      '另有 ' + (ms.intro || 0) + ' 张章/节概述卡（同样可收藏、笔记、编辑）。' +
       '知识要点：' + ks.chapters + ' 章 ' + ks.items + ' 条，含导图 ' + ks.images + ' 张、表格 ' + ks.tables + ' 个。' +
       '自测题：' + qs.questions + ' 题（单选 ' + qs.A1 + ' / 配伍 ' + qs.B1 + ' / 多选 ' + qs.X + ' / 名词 ' + qs.NM + ' / 问答 ' + qs.QA + '）。' +
       '说明：教材篇目从第二篇第四章起（原书第一篇总论未收入提取稿）；'

@@ -320,9 +320,12 @@
      3. 答题卡（阶段考 viewGrid：顶部操作条 + 统计 + 数字格 + 图例）
         需求：按题型分段；每个题型行放「重做本题型」
      ========================================================= */
+  /* 自定义批量重做：选择模式（开关 + 选中集），跨题型、只对已作答的题生效 */
+  var selMode = { cid: '', on: false, ids: {} };
   function renderCard(main, p, q) {
     var cid = p[0], ch = chapterOf(cid);
     if (!ch) { UI.header({ title: '答题卡', back: true, backTo: '#/quiz' }); main.innerHTML = UI.emptyBox('章节不存在'); return; }
+    if (selMode.cid !== cid) selMode = { cid: cid, on: false, ids: {} };
     var t = q.t || '';
     var f = q.f || 'all';
     if (f !== 'all' && !t) f = 'all';
@@ -343,6 +346,7 @@
     var h = [];
     h.push('<div class="qz-gbar">' +
       '<button class="btn sm primary qz-gbtn" id="gStart">' + (focusList.length ? '开始 / 继续答题' : '本题型没有题目') + '</button>' +
+      '<button class="btn sm qz-gbtn2" id="gSel">自定义重做</button>' +
       '</div>');
 
     /* 汇总统计（对齐阶段考 gstats：已做 / 正确 / 错误 / 正确率） */
@@ -405,6 +409,12 @@
       '<span><i class="qz-lg hasnote"></i>右上角小蓝点 = 有笔记</span>' +
       '</div>');
     h.push('</div>');
+    /* 选择模式的底部操作条（默认隐藏） */
+    h.push('<div class="qz-selbar" id="selbar">' +
+      '<span class="qz-seln">已选 <b id="seln">0</b> 题</span>' +
+      '<button class="btn sm" id="selAll">全选已做</button>' +
+      '<button class="btn sm primary" id="selDo">重做所选</button>' +
+      '<button class="btn sm ghost" id="selCancel">取消</button></div>');
     main.innerHTML = h.join('');
 
     function refresh() { UI.render(); }
@@ -429,12 +439,68 @@
     });
     qsa(main, '.qz-cell').forEach(function (b) {
       b.onclick = function () {
+        if (selMode.on) { toggleCell(b); return; }
         var i = parseInt(b.getAttribute('data-i'), 10);
         var sec = b.closest ? b.closest('.qz-gsec') : null;
         var tt = sec ? sec.getAttribute('data-sec') : focusT;
         startRun(cid, tt, f, i);
       };
     });
+    /* ---- 自定义批量重做 ---- */
+    function selCount() { return Object.keys(selMode.ids).length; }
+    function syncBar() {
+      var el = main.querySelector('#seln'); if (el) el.textContent = String(selCount());
+      var bar = main.querySelector('#selbar'); if (bar) bar.classList.toggle('on', selMode.on);
+      var g = main.querySelector('#gSel'); if (g) g.textContent = selMode.on ? '退出选择' : '自定义重做';
+      main.classList.toggle('sel-on', selMode.on);
+    }
+    function toggleCell(b) {
+      var qid = b.getAttribute('data-qid');
+      if (stOf(qid) === ST.NONE) { UI.toast('这题还没作答，不用重做'); return; }
+      if (selMode.ids[qid]) { delete selMode.ids[qid]; b.classList.remove('sel'); }
+      else { selMode.ids[qid] = 1; b.classList.add('sel'); }
+      syncBar();
+    }
+    function exitSel() {
+      selMode.on = false; selMode.ids = {};
+      qsa(main, '.qz-cell.sel').forEach(function (b) { b.classList.remove('sel'); });
+      syncBar();
+    }
+    var gsel = main.querySelector('#gSel');
+    if (gsel) gsel.onclick = function () {
+      selMode.on = !selMode.on;
+      selMode.ids = {};
+      qsa(main, '.qz-cell.sel').forEach(function (b) { b.classList.remove('sel'); });
+      syncBar();
+      if (selMode.on) UI.toast('点题目格选择要重做的题');
+    };
+    var selAll = main.querySelector('#selAll');
+    if (selAll) selAll.onclick = function () {
+      qsa(main, '.qz-cell').forEach(function (b) {
+        if (stOf(b.getAttribute('data-qid')) === ST.NONE) return;
+        selMode.ids[b.getAttribute('data-qid')] = 1; b.classList.add('sel');
+      });
+      syncBar();
+    };
+    var selDo = main.querySelector('#selDo');
+    if (selDo) selDo.onclick = function () {
+      var ids = Object.keys(selMode.ids);
+      if (!ids.length) { UI.toast('先点选要重做的题'); return; }
+      UI.confirmDialog('重做所选题目',
+        '将清除所选 ' + ids.length + ' 题的作答痕迹（选择/判定/错题记录），回到「未做」，可重新作答。' +
+        '历史作答次数与对错统计会保留。确定重做？', '重做', '取消').then(function (ok2) {
+          if (!ok2) return;
+          var done = 0;
+          ids.forEach(function (qid) { if (clearQuestion(qid)) done++; });
+          selMode.on = false; selMode.ids = {};
+          UI.toast(done ? ('已清空 ' + done + ' 题，可重新作答') : '所选题目没有作答记录');
+          UI.render();
+        });
+    };
+    var selCancel = main.querySelector('#selCancel');
+    if (selCancel) selCancel.onclick = exitSel;
+    syncBar();
+
     /* 从题型入口进入时，把该题型段滚到可见位置 */
     if (t) {
       setTimeout(function () {

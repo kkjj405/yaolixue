@@ -72,6 +72,37 @@
 
       nav('#/mat');
       ok('教材目录章行', qa('[data-chap]').length > 0, qa('[data-chap]').length);
+      /* 概述卡：章/节前置正文现在是可点的卡片（用户 2026-11-23 要求） */
+      var introList = Z.MAT.entries.filter(function (e) { return e.kind === 'intro'; });
+      ok('概述卡数量正常（章+节 ≥ 100）', introList.length >= 100, introList.length);
+      ok('概述卡分章/节两类',
+        introList.some(function (e) { return e.introOf === 'chapter'; }) &&
+        introList.some(function (e) { return e.introOf === 'section'; }));
+      if (q('[data-chap] .chap-hd')) q('[data-chap] .chap-hd').click();
+      await wait(20);
+      ok('目录里出现概述卡（述）', qa('.er-kind.intro').length >= 1, qa('.er-kind.intro').length);
+      var ie = introList.filter(function (e) { return e.introOf === 'chapter'; })[0];
+      nav('#/entry/' + ie.id);
+      await wait(40);   /* 等 hashchange 触发的二次渲染结束，否则面板会被冲掉 */
+      ok('概述卡可打开且有正文', !!q('#ct-body') && q('#ct-body').textContent.length > 60,
+        q('#ct-body') ? q('#ct-body').textContent.length : 'NO');
+      ok('概述卡有笔记/收藏/编辑按钮',
+        qa('[data-act="note"]').length === 1 && qa('[data-act="fav"]').length === 1 &&
+        qa('[data-act="edit"]').length === 1);
+      ok('概述卡标签显示「概述」', mainTxt().indexOf('概述') >= 0);
+      q('[data-act="edit"]').click();
+      await wait(20);
+      var cp = document.getElementById('card-panel');
+      ok('概述卡可打开编辑面板', !!q('.panel') && cp && cp.innerHTML.length > 0,
+        cp ? ('panelHTML=' + cp.innerHTML.length) : 'NO#card-panel');
+      ok('编辑面板按段落分字段', qa('.ef').length >= 1, qa('.ef').length);
+      if (q('[data-pc="close"]')) q('[data-pc="close"]').click();
+      q('[data-act="fav"]').click();
+      await wait(10);
+      if (q('[data-pc="fav-do"]')) q('[data-pc="fav-do"]').click();
+      await wait(20);
+      ok('概述卡可收藏', !!Z.store.fav[ie.id]);
+      Z.toggleFav(ie.id);
       var drug = Z.MAT.entries.filter(function (e) { return e.kind === 'drug' && e.blocks.length; })[0];
       nav('#/entry/' + drug.id);
       var body = q('#ct-body');
@@ -230,6 +261,41 @@
       await wait(10);
       ok('从答题卡继续作答保持上次进度', Z.store.sessions.cur.idx === resumeIdx,
         Z.store.sessions.cur.idx + '/' + resumeIdx);
+
+      /* 自定义批量重做：用户自行选哪几题（保留重做本题型） */
+      nav('#/qcard/' + s0.cid + '?t=' + s0.type);
+      var selList = YQ.listOf(s0.cid, s0.type, 'all');
+      selList.slice(0, 2).forEach(function (qq) {
+        Z.store.rec[qq.id] = { c: (qq.answer && qq.answer[0]) || 'A', st: 1, ts: Date.now() };
+      });
+      Z.save(true);
+      nav('#/qcard/' + s0.cid + '?t=' + s0.type);
+      await wait(10);
+      ok('答题卡有「自定义重做」入口', !!q('#gSel'));
+      if (q('#gSel')) q('#gSel').click();
+      await wait(10);
+      ok('进入选择模式：底部操作条出现', !!q('#selbar.on'));
+      var beforeHash = location.hash, clickedN = 0;
+      qa('.qz-cell').forEach(function (b) {
+        if (clickedN >= 2) return;
+        if (b.classList.contains('s1') || b.classList.contains('s2')) { b.click(); clickedN++; }
+      });
+      await wait(10);
+      ok('选择模式下点格子不跳转答题页', location.hash === beforeHash, location.hash);
+      ok('已选计数正确', q('#seln') && q('#seln').textContent === String(clickedN),
+        q('#seln') ? q('#seln').textContent : 'NO');
+      ok('选中格子有选中态', qa('.qz-cell.sel').length === clickedN, qa('.qz-cell.sel').length);
+      if (q('#selDo')) q('#selDo').click();
+      await wait(10);
+      ok('重做所选会弹确认', document.getElementById('dialog').classList.contains('on'));
+      clickDialogYes();
+      await wait(40);
+      var stillDone = selList.slice(0, 2).filter(function (qq) {
+        var r = Z.store.rec[qq.id];
+        return r && r.st !== 0;
+      });
+      ok('重做所选只清选中的题', stillDone.length === 0,
+        stillDone.map(function (x) { return x.id; }).join(','));
 
       /* 需求 6：答题卡题型行「重做本题型」批量清痕迹（无弹窗式范围选择） */
       nav('#/qcard/' + s0.cid + '?t=' + s0.type);
