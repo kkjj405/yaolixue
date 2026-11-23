@@ -1,9 +1,9 @@
 /* 药理学 · Service Worker（离线优先；核心与导图分缓存）
- * 版本：2.1.1　核心 21 项　导图 40 项
+ * 版本：2.2.0　核心 21 项　导图 102 项
  * 本文件由 build_pwa.py 生成，勿手改。
  */
-const CORE = 'yll-yaolixue-v2.1.1';
-const IMG = 'yll-yaolixue-img-6d667ab7b8';
+const CORE = 'yll-yaolixue-v2.2.0';
+const IMG = 'yll-yaolixue-img-a8af1578c7';
 const CORE_ASSETS = [
   "./app.css",
   "./index.html",
@@ -67,7 +67,69 @@ const IMG_ASSETS = [
   "./img/kp37.jpg",
   "./img/kp38.jpg",
   "./img/kp39.jpg",
-  "./img/kp40.jpg"
+  "./img/kp40.jpg",
+  "./img/tables/q04.jpg",
+  "./img/tables/q05.jpg",
+  "./img/tables/q05_2.jpg",
+  "./img/tables/q06.jpg",
+  "./img/tables/q08.jpg",
+  "./img/tables/q09.jpg",
+  "./img/tables/q10.jpg",
+  "./img/tables/q12.jpg",
+  "./img/tables/q13.jpg",
+  "./img/tables/q14.jpg",
+  "./img/tables/q15.jpg",
+  "./img/tables/q16.jpg",
+  "./img/tables/q17.jpg",
+  "./img/tables/q18.jpg",
+  "./img/tables/q19.jpg",
+  "./img/tables/q20.jpg",
+  "./img/tables/q21.jpg",
+  "./img/tables/q22.jpg",
+  "./img/tables/q23.jpg",
+  "./img/tables/q24.jpg",
+  "./img/tables/q25.jpg",
+  "./img/tables/q26.jpg",
+  "./img/tables/q28.jpg",
+  "./img/tables/q29.jpg",
+  "./img/tables/q31.jpg",
+  "./img/tables/q33.jpg",
+  "./img/tables/q34.jpg",
+  "./img/tables/q36.jpg",
+  "./img/tables/q37.jpg",
+  "./img/tables/q38.jpg",
+  "./img/tables/q39.jpg",
+  "./img/tables/q40.jpg",
+  "./img/tables/q41.jpg",
+  "./img/tables/q42.jpg",
+  "./img/tables/tb0401.jpg",
+  "./img/tables/tb0401_2.jpg",
+  "./img/tables/tb0402.jpg",
+  "./img/tables/tb0402_2.jpg",
+  "./img/tables/tb0403.jpg",
+  "./img/tables/tb0501.jpg",
+  "./img/tables/tb0502.jpg",
+  "./img/tables/tb0503.jpg",
+  "./img/tables/tb0602.jpg",
+  "./img/tables/tb0603.jpg",
+  "./img/tables/tb0701.jpg",
+  "./img/tables/tb0902.jpg",
+  "./img/tables/tb1001.jpg",
+  "./img/tables/tb1101.jpg",
+  "./img/tables/tb1401.jpg",
+  "./img/tables/tb1402.jpg",
+  "./img/tables/tb1601.jpg",
+  "./img/tables/tb1602.jpg",
+  "./img/tables/tb1603.jpg",
+  "./img/tables/tb1801.jpg",
+  "./img/tables/tb2001.jpg",
+  "./img/tables/tb2101.jpg",
+  "./img/tables/tb2402.jpg",
+  "./img/tables/tb2601.jpg",
+  "./img/tables/tb3102.jpg",
+  "./img/tables/tb3201.jpg",
+  "./img/tables/tb3203.jpg",
+  "./img/tables/tb3204.jpg"
 ];
 
 /* 逐项预缓存：本缓存里已有就跳过（旧版本里同名资源直接复用，不重复下载） */

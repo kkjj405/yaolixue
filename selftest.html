@@ -108,7 +108,7 @@
       var body = q('#ct-body');
       ok('药物卡渲染有内容', body && body.textContent.length > 50, body ? body.textContent.length : 'NO');
       var tblE = Z.MAT.entries.filter(function (e) { return e.blocks.some(function (b) { return b.t === 'table'; }); })[0];
-      if (tblE) { nav('#/entry/' + tblE.id); ok('含表格卡片渲染 table', !!q('.tbl-wrap table')); }
+      if (tblE) { nav('#/entry/' + tblE.id); ok('含表格卡片渲染 table/图片', !!q('.tbl-wrap table') || !!q('.tbl-fig img')); }
       /* §2.6 内容归属红线：教材卡不得出现习题集的导图/表格 */
       ok('教材条目无任何导图挂载', !Z.MAT.entries.some(function (e) { return (e.maps && e.maps.length) || e.blocks.some(function (b) { return b.t === 'img'; }); }));
       ok('教材条目 src 全为 book', Z.MAT.entries.every(function (e) { return e.src === 'book'; }));
@@ -435,6 +435,43 @@
 
       nav('#/qcard/' + chNm.id + '?t=NM');
       ok('答题卡无「交卷」', mainTxt().indexOf('交卷') < 0);
+      /* ── 表格图片（原书扫描）── */
+      var imgBlocks = [], noImgBlocks = [];
+      (window.YL_MAT.entries || []).forEach(function (e) {
+        (e.blocks || []).forEach(function (b) {
+          if (b.t !== 'table') return;
+          if (b.img) imgBlocks.push({ e: e, b: b }); else noImgBlocks.push({ e: e, b: b });
+        });
+      });
+      ok('表块带图 ≥25', imgBlocks.length >= 25, imgBlocks.length + '/' + (imgBlocks.length + noImgBlocks.length));
+      if (imgBlocks.length) {
+        var t1 = imgBlocks[0];
+        nav('#/entry/' + t1.e.id);
+        await wait(60);
+        var fig = q('.tbl-fig img');
+        ok('表格渲染成图片', !!fig && fig.getAttribute('src') === t1.b.img,
+          fig && fig.getAttribute('src'));
+        var loaded = false;
+        if (fig) {
+          loaded = fig.complete && fig.naturalWidth > 0;
+          if (!loaded) {
+            loaded = await new Promise(function (res) {
+              fig.onload = function () { res(fig.naturalWidth > 0); };
+              fig.onerror = function () { res(false); };
+              setTimeout(function () { res(fig.naturalWidth > 0); }, 1500);
+            });
+          }
+        }
+        ok('表格图片真的能加载', loaded);
+        ok('图片块旁仍保留图题', !!q('.tbl-fig figcaption'), !!q('.tbl-fig figcaption'));
+      }
+      if (noImgBlocks.length) {
+        var t2 = noImgBlocks[0];
+        nav('#/entry/' + t2.e.id);
+        await wait(40);
+        ok('无图的表块仍渲染文字表', !!q('.tbl-wrap table'));
+      }
+
     } catch (e) {
       F++; L.push('EXC ' + (e && e.stack ? e.stack : e));
     }

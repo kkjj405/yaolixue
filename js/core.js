@@ -79,6 +79,12 @@
     return x;
   }
   function tableHTML(bl) {
+    // 有原书扫描图时直接用图片（保留合并单元格/结构式），文字表作为兜底
+    if (bl.img) {
+      return '<figure class="tbl-fig"><img src="' + bl.img + '" alt="' + (bl.cap || '表格') +
+        '" loading="lazy" onclick="UI.lightbox(this.getAttribute(\'src\'))">' +
+        '<figcaption>' + (bl.cap ? inline(bl.cap) : '点图放大') + '</figcaption></figure>';
+    }
     var h = ['<div class="tbl-wrap"><table><thead><tr>'];
     (bl.head || []).forEach(function (c) { h.push('<th>' + cellHTML(c) + '</th>'); });
     h.push('</tr></thead><tbody>');
@@ -239,18 +245,20 @@
     var d = store.done[id] || { n: 0, ok: 0 };
     d.n++; if (ok) d.ok++;
     store.done[id] = d;
-    if (!ok) store.wrong[id] = (store.wrong[id] || 0) + 1; else delete store.wrong[id];
+    /* 错题本只增不删：答对不移出，只有用户手动「移除」才删除 */
+    if (!ok) store.wrong[id] = (store.wrong[id] || 0) + 1;
     save(true);
   }
   function clearRec(id) {
-    delete store.rec[id]; delete store.wrong[id]; delete store.done[id];
+    /* 清作答痕迹，但错题本成员保留（移出只能走「移除错题」） */
+    delete store.rec[id]; delete store.done[id];
     save(true);
   }
   function clearType(chapterId, type) {
     var n = 0;
     (QZ.questions || []).forEach(function (q) {
       if ((!chapterId || q.chapterId === chapterId) && (!type || q.type === type) && store.rec[q.id]) {
-        delete store.rec[q.id]; delete store.wrong[q.id]; delete store.done[q.id]; n++;
+        delete store.rec[q.id]; delete store.done[q.id]; n++;
       }
     });
     save(true); return n;

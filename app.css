@@ -742,3 +742,9 @@ details.intro>summary:after{content:"展开"; margin-left:auto; font-weight:400;
 details.intro[open]>summary:after{content:"收起"}
 details.intro>.rich{padding:2px 12px 10px; font-size:13.5px; color:var(--ink-2); max-height:none}
 details.intro>.rich p{margin:6px 0}
+
+/* 表格图片（原书扫描） */
+.tbl-fig{margin:10px 0 14px}
+.tbl-fig img{display:block;width:100%;height:auto;border:1px solid var(--line);
+  border-radius:8px;background:#fff;cursor:zoom-in}
+.tbl-fig figcaption{margin-top:4px;font-size:12px;color:#8a938c;text-align:center}

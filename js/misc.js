@@ -46,6 +46,12 @@
     var favN = Object.keys(Z.store.fav).length;
     h.push('<div class="card list"><a class="li" href="#/fav"><span class="li-ic">' + icon('star') + '</span>' +
       '<span class="grow"><span class="li-t">我的收藏</span><span class="li-s">教材卡片 ' + favN + ' 张</span></span><span class="at-go">›</span></a></div>');
+    /* 错题本入口（在「我的收藏」卡片下方，显示当前错题数 → #/qwrong） */
+    var YQ = window.YL_QUIZ_UI;
+    var wrongN = (YQ && YQ.wrongN) ? YQ.wrongN() : Object.keys(Z.store.wrong || {}).length;
+    h.push('<div class="card list" id="home-wrongbook"><a class="li" href="#/qwrong?seg=wrong"><span class="li-ic">' +
+      icon('refresh') + '</span><span class="grow"><span class="li-t">错题本</span>' +
+      '<span class="li-s">共 ' + wrongN + ' 题 · 点此复习</span></span><span class="at-go">›</span></a></div>');
     main.innerHTML = h.join('');
     var ann = main.querySelector('#ann-hd');
     if (ann) ann.onclick = function () {

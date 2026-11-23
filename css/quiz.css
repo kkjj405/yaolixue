@@ -214,3 +214,20 @@
 .qz-selbar.on{display:flex}
 .qz-seln{flex:1; font-size:13px; color:var(--ink-2)}
 .qz-seln b{color:var(--accent); font-size:16px; margin:0 2px}
+
+/* ============ 错题本：自动保留 + 手动「移除错题」（2026-11-24） ============ */
+/* 答题页的错题管理条：只要题在错题本里就显示（含已掌握 / 重做后） */
+.qz-wbar{display:flex; align-items:center; gap:10px; margin:12px 0 4px;
+  padding:9px 12px; background:#f8f1f0; border:1px dashed #e6c6c0; border-radius:10px}
+.qz-wbar-t{flex:1; min-width:0; display:flex; align-items:center; gap:6px;
+  font-size:11.5px; line-height:1.5; color:#8a5a2b}
+.qz-wbar-t svg{width:15px; height:15px; flex:0 0 15px; fill:none; stroke:#b8892f;
+  stroke-width:1.8; stroke-linecap:round; stroke-linejoin:round}
+.qz-wbar .btn{flex:0 0 auto}
+/* 错题答题卡：每道错题一行的「移除」列表 */
+.qz-wlist{margin-top:10px; padding-top:8px; border-top:1px dashed var(--line-2)}
+.qz-wrow{display:flex; align-items:center; gap:10px; padding:6px 2px; border-bottom:1px dashed var(--line)}
+.qz-wrow:last-child{border-bottom:0}
+.qz-wrow-t{flex:1; min-width:0; font-size:12px; line-height:1.5; color:var(--ink-2);
+  display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden}
+.qz-wrow .btn{flex:0 0 auto}

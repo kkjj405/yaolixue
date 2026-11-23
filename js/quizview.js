@@ -76,9 +76,8 @@
       else if (st === ST.WRONG) w++;
     }
     Z.store.rec[id] = { c: c, st: st, n: n, r: r, w: w, ts: Date.now() };
-    if (st === ST.RIGHT) delete Z.store.wrong[id];
-    else if (st === ST.WRONG) Z.store.wrong[id] = (Z.store.wrong[id] || 0) + 1;
-    else delete Z.store.wrong[id];
+    /* 错题本成员与作答状态解耦：只有答错才收录；答对 / 已掌握 / 重做都不自动移出 */
+    if (st === ST.WRONG) addWrong(id);
     Z.save(true);
   }
   function selfEval(id, ok) {
@@ -90,39 +89,36 @@
     else if (prev !== ST.RIGHT && prev !== ST.WRONG) { if (ok) r.r = (r.r || 0) + 1; else r.w = (r.w || 0) + 1; }
     r.st = ok ? ST.RIGHT : ST.WRONG;
     r.ts = Date.now();
-    if (ok) delete Z.store.wrong[id];
-    else Z.store.wrong[id] = (Z.store.wrong[id] || 0) + 1;
+    /* 自评只影响作答状态；已收录的错题不因改判为「答对」而移出 */
+    if (!ok) addWrong(id);
     Z.save(true);
   }
-  /* 已掌握（阶段考 ST.SKIP）：覆盖显示状态，但保留原作答痕迹（比参考实现更不丢痕迹） */
+  /* 已掌握（阶段考 ST.SKIP）：覆盖显示状态，但保留原作答痕迹（比参考实现更不丢痕迹）
+     改进：已掌握不再增删错题本成员，错题只能通过「移除错题」移出 */
   function toggleMastered(id) {
     var r = recOf(id);
     if (!r) return false;
     if (r.st === ST.SKIP) {
       r.st = (r.prevSt === ST.RIGHT || r.prevSt === ST.WRONG) ? r.prevSt : ST.NONE;
       delete r.prevSt;
-      if (r.st === ST.WRONG) Z.store.wrong[id] = (Z.store.wrong[id] || 0) + 1;
-      else delete Z.store.wrong[id];
     } else {
       r.prevSt = r.st;
       r.st = ST.SKIP;
-      delete Z.store.wrong[id];
     }
     r.ts = Date.now();
     Z.save(true);
     return r.st === ST.SKIP;
   }
-  /* 每题重做：清空本题作答痕迹（答题卡回到未做），保留历史次数统计 */
+  /* 每题重做：清空本题作答痕迹（答题卡回到未做），保留历史次数统计与错题本成员 */
   function clearQuestion(id) {
     var r = Z.store.rec[id];
     if (!r) return false;
     r.c = null; r.st = ST.NONE; r.ts = Date.now();
     delete r.prevSt;
-    delete Z.store.wrong[id];
     Z.save(true);
     return true;
   }
-  /* 题型批量重做：清空某章某题型（或当前筛选集合）的作答痕迹，保留历史统计 */
+  /* 题型批量重做：清空某章某题型（或当前筛选集合）的作答痕迹，保留历史统计与错题本成员 */
   function clearType(cid, t, f) {
     var n = 0;
     listOf(cid, t, f || 'all').forEach(function (q) {
@@ -130,7 +126,6 @@
       if (r && (r.st !== ST.NONE || r.c != null)) {
         r.c = null; r.st = ST.NONE;
         delete r.prevSt;
-        delete Z.store.wrong[q.id];
         n++;
       }
     });
@@ -140,6 +135,44 @@
   function statText(r) {
     if (!r || !r.n) return '本题还未作答';
     return '已做 ' + r.n + ' 次 · 答对 ' + (r.r || 0) + ' 次 · 答错 ' + (r.w || 0) + ' 次';
+  }
+
+  /* ---------------- 错题本成员（2026-11-24 改进） ----------------
+     错题不再随「已掌握 / 重做 / 重做后答对」自动移出：
+       · 成员判定只看 Z.store.wrong 里是否存在该题（沿用旧字段 {qid: 次数}，不新增存储键）；
+       · 只有用户点「移除错题」并二次确认才删除；
+       · 老数据兼容：启动时把 rec 里仍处于「答错」(st=2 / 旧 s=0) 但 wrong 里缺项的题补登记，
+         老用户已有的错题不会因升级丢失；已被旧版自动移除的题无法恢复（旧版没留痕）。
+     注意：作答状态仍是 rec.st（答题卡颜色不变），错题本成员与它解耦。 */
+  function inWrong(id) { return !!Z.qBy[id] && !!Z.store.wrong[id]; }
+  function addWrong(id) { Z.store.wrong[id] = (Z.store.wrong[id] || 0) + 1; }
+  function removeWrong(id) {
+    if (!Z.store.wrong[id]) return false;
+    delete Z.store.wrong[id];
+    Z.save(true);
+    return true;
+  }
+  function migrateWrong() {
+    var changed = false;
+    Object.keys(Z.store.rec || {}).forEach(function (id) {
+      if (!Z.qBy[id] || Z.store.wrong[id]) return;
+      var r = recOf(id);
+      if (r && r.st === ST.WRONG) { Z.store.wrong[id] = 1; changed = true; }
+    });
+    if (changed) Z.save(true);
+  }
+  /* 移除错题：统一入口（二次确认），移除只删错题本成员，不动 rec / done 统计 */
+  function confirmRemoveWrong(qid, after) {
+    return UI.confirmDialog('移除错题',
+      '将把这道题从错题本移除（不影响作答记录与对错统计）。' +
+      '只有手动移除才会离开错题本；「已掌握」「重做」以及重做后答对都不会自动移除。确定移除？',
+      '移除', '取消').then(function (ok) {
+        if (!ok) return false;
+        var n = removeWrong(qid);
+        if (n) UI.toast('已从错题本移除');
+        if (after) after(n);
+        return n;
+      });
   }
 
   /* ---------------- 练习模式（对齐阶段考「练习 / 快刷 / 背题」，不做整卷提交模式） ---------------- */
@@ -175,7 +208,7 @@
     var list = qsOf(cid, t);
     if (!f || f === 'all') return list;
     return list.filter(function (q) {
-      if (f === 'wrong') return stOf(q.id) === ST.WRONG;
+      if (f === 'wrong') return inWrong(q.id);
       if (f === 'fav') return !!Z.store.qfav[q.id];
       if (f === 'note') return !!(Z.store.qnotes[q.id] || '').trim();
       return true;
@@ -229,7 +262,8 @@
     return h;
   }
   function wrongN() {
-    return Object.keys(Z.store.rec).filter(function (id) { return Z.qBy[id] && stOf(id) === ST.WRONG; }).length;
+    /* 当前错题数 = 错题本成员数（含已掌握 / 重做后答对但仍保留的题） */
+    return Object.keys(Z.store.wrong).filter(function (id) { return Z.qBy[id]; }).length;
   }
   function favN() {
     return Object.keys(Z.store.qfav).filter(function (id) { return Z.qBy[id]; }).length;
@@ -393,6 +427,13 @@
         if (curQid && curQid === qq.id) cls += ' cur';
         return '<button class="' + cls + '" data-i="' + pos + '" data-qid="' + qq.id + '">' + (pos + 1) + '</button>';
       }).join('') + '</div>');
+      /* 错题答题卡：每题一个「移除」入口（唯一能移出错题本的地方，二次确认） */
+      if (f === 'wrong') {
+        h.push('<div class="qz-wlist">' + list.map(function (qq) {
+          return '<div class="qz-wrow"><span class="qz-wrow-t">' + esc(Z.clip(qq.stem, 46)) + '</span>' +
+            '<button class="btn xs danger" data-unwrong="' + qq.id + '">移除</button></div>';
+        }).join('') + '</div>');
+      }
       h.push('<div class="qz-gsec-act">' +
         '<button class="btn sm primary" data-start="' + x + '">开始 / 继续本题型</button>' +
         '<button class="btn sm" data-redo="' + x + '">重做本题型（' + s.done + ' 题已做）</button>' +
@@ -444,6 +485,20 @@
         var sec = b.closest ? b.closest('.qz-gsec') : null;
         var tt = sec ? sec.getAttribute('data-sec') : focusT;
         startRun(cid, tt, f, i);
+      };
+    });
+    /* 错题答题卡里的「移除」（二次确认；移除后若该题型没有错题就回到错题本） */
+    qsa(main, '[data-unwrong]').forEach(function (b) {
+      b.onclick = function (e) {
+        if (e && e.stopPropagation) e.stopPropagation();
+        var qid = b.getAttribute('data-unwrong');
+        var sec = b.closest ? b.closest('.qz-gsec') : null;
+        var tt = sec ? sec.getAttribute('data-sec') : focusT;
+        confirmRemoveWrong(qid, function (n) {
+          if (!n) return;
+          if (f === 'wrong' && !listOf(cid, tt, 'wrong').length) { UI.go('#/qwrong?seg=wrong'); return; }
+          refresh();
+        });
       };
     });
     /* ---- 自定义批量重做 ---- */
@@ -660,6 +715,14 @@
         '</div>');
     }
 
+    /* 错题本管理条：在错题本里的题始终有「移除错题」入口（唯一移出方式，二次确认）。
+       即使已掌握 / 重做后（作答痕迹被清空）也保留成员，所以这里不依赖 answered。 */
+    if (inWrong(qid)) {
+      h.push('<div class="qz-wbar"><span class="qz-wbar-t">' + icon('refresh') +
+        '在错题本中 · 已掌握 / 重做不会自动移除</span>' +
+        '<button class="btn sm danger" id="q-unwrong">移除错题</button></div>');
+    }
+
     /* 底部操作条（对齐阶段考 qfoot：上一题 / 答题卡 / 下一题） */
     h.push('<div class="qz-foot">' +
       '<button class="btn sm qz-fb" id="q-prev"' + (s.idx <= 0 ? ' disabled' : '') + '>上一题</button>' +
@@ -790,6 +853,20 @@
           rerun();
         });
     };
+    /* 移除错题（唯一移出错题本的入口，二次确认）。当前集合是「错题」时题目会从列表消失 */
+    var uw = main.querySelector('#q-unwrong');
+    if (uw) uw.onclick = function () {
+      confirmRemoveWrong(qid, function (n) {
+        if (!n) return;
+        if (s.filter === 'wrong') {
+          var left = listOf(s.cid, s.type, 'wrong');
+          if (!left.length) { UI.go('#/qwrong?seg=wrong'); return; }
+          if (s.idx >= left.length) s.idx = left.length - 1;
+          saveSess(s);
+        }
+        rerun();
+      });
+    };
     var nt = main.querySelector('#q-note');
     if (nt) nt.onclick = function () {
       if (noteOpen) { commitNote(qid); noteOpen = false; rerun(); return; }
@@ -846,6 +923,10 @@
       '<button data-seg="fav" class="' + (seg === 'fav' ? 'on' : '') + '">我的收藏</button>' +
       '<button data-seg="note" class="' + (seg === 'note' ? 'on' : '') + '">我的笔记</button>' +
       '</div>'];
+    if (seg === 'wrong') {
+      h.push('<div class="qz-hint">' + icon('refresh') +
+        '<span>错题只有点「移除错题」才会移出；「已掌握」和「重做」都不会自动移除。点题型先进答题卡，再点题号作答。</span></div>');
+    }
     var any = false, total = 0;
     (Z.QZ.chapters || []).forEach(function (ch) {
       var rows = '';
@@ -873,10 +954,14 @@
         var f = seg;
         var list = listOf(cid, t, f);
         if (!list.length) { UI.toast('这个集合里没有题目'); return; }
-        startRun(cid, t, f);
+        /* 改进：从错题本点题型先进入该题型的答题卡，用户再点具体题号才进题目页 */
+        UI.go(cardHash(cid, t, f));
       };
     });
   }
+
+  /* 老数据兼容：升级后首次加载时，把「仍是答错状态但错题本缺项」的题补登记（只补不改） */
+  migrateWrong();
 
   /* ---------------- 路由注册 ---------------- */
   UI.VIEWS.quiz = renderHome;
@@ -892,6 +977,7 @@
     startRun: startRun, cardHash: cardHash,
     listOf: listOf, statOf: statOf, chapterStat: chapterStat,
     clearQuestion: clearQuestion, clearType: clearType,
+    inWrong: inWrong, removeWrong: removeWrong, migrateWrong: migrateWrong,
     wrongN: wrongN, favN: favN, noteN: noteN
   };
 })();
