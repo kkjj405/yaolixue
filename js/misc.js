@@ -211,9 +211,12 @@
     main.innerHTML = '<div class="card"><h3 class="serif" style="margin:0 0 10px">药理学 · 学习工具</h3>' +
       '<p class="small" style="line-height:1.75">内容基于《药理学》教材整理稿与《学习指导与习题集》整理稿。' +
       '仅供学习使用，不提供临床用药指导。' +
-      '教材卡片：' + ms.parts + ' 篇 ' + ms.chapters + ' 章 ' + cards + ' 张卡（药物 ' + ms.drugs + '、概念 ' + ms.topics + '），导图 ' + ms.maps + ' 张。' +
+      '教材卡片：' + ms.parts + ' 篇 ' + ms.chapters + ' 章 ' + cards + ' 张卡（药物 ' + ms.drugs + '、概念 ' + ms.topics + '）。' +
       '知识要点：' + ks.chapters + ' 章 ' + ks.items + ' 条，含导图 ' + ks.images + ' 张、表格 ' + ks.tables + ' 个。' +
-      '自测题：' + qs.questions + ' 题（单选 ' + qs.A1 + ' / 配伍 ' + qs.B1 + ' / 多选 ' + qs.X + ' / 名词 ' + qs.NM + ' / 问答 ' + qs.QA + '）。</p></div>';
+      '自测题：' + qs.questions + ' 题（单选 ' + qs.A1 + ' / 配伍 ' + qs.B1 + ' / 多选 ' + qs.X + ' / 名词 ' + qs.NM + ' / 问答 ' + qs.QA + '）。' +
+      '说明：教材篇目从第二篇第四章起（原书第一篇总论未收入提取稿）；'
+      '第三十五章自测题原提取稿缺失，已按扫描原书逐题补录；'
+      '第七章第 3 题问答题答案原书缺失。</p></div>';
   }
 
   function renderTip(main) {
