@@ -114,6 +114,17 @@
       ok('教材条目 src 全为 book', Z.MAT.entries.every(function (e) { return e.src === 'book'; }));
       ok('知识要点 src 全为 guide', Z.KP.items.every(function (i) { return i.src === 'guide'; }));
 
+      /* 检查更新 / 强制刷新（用户 2026-11-23 反馈更新慢） */
+      nav('#/me');
+      ok('我的页有「检查」与「强制刷新」两个入口', !!q('#upd-btn') && !!q('#upd-hard'));
+      if (q('#upd-hard')) q('#upd-hard').click();
+      await wait(20);
+      ok('强制刷新会先弹确认（不直接清缓存）', document.getElementById('dialog').classList.contains('on'));
+      var dcb = document.querySelectorAll('#dialog [data-di]');
+      if (dcb.length) dcb[0].click();   /* 取消 */
+      await wait(20);
+      ok('取消后页面不变', location.hash.indexOf('#/me') >= 0);
+
       nav('#/home');
       ok('首页：封面卡结构就位', !!q('.hero .hero-t') && !!q('.hero-en') && qa('.hero-stats .hs').length === 3);
       ok('首页：不再出现「4 种题型」旧文案', mainTxt().indexOf('4 种题型') < 0);
