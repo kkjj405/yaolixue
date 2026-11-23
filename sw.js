@@ -1,9 +1,9 @@
 /* 药理学 · Service Worker（离线优先；核心与导图分缓存）
- * 版本：2.2.0　核心 21 项　导图 102 项
+ * 版本：2.2.1　核心 21 项　导图 110 项
  * 本文件由 build_pwa.py 生成，勿手改。
  */
-const CORE = 'yll-yaolixue-v2.2.0';
-const IMG = 'yll-yaolixue-img-a8af1578c7';
+const CORE = 'yll-yaolixue-v2.2.1';
+const IMG = 'yll-yaolixue-img-b3a29ad78e';
 const CORE_ASSETS = [
   "./app.css",
   "./index.html",
@@ -68,6 +68,14 @@ const IMG_ASSETS = [
   "./img/kp38.jpg",
   "./img/kp39.jpg",
   "./img/kp40.jpg",
+  "./img/tables/ans_c15q2.jpg",
+  "./img/tables/ans_c21q2.jpg",
+  "./img/tables/ans_c21q3.jpg",
+  "./img/tables/ans_c21q4.jpg",
+  "./img/tables/ans_c22q1.jpg",
+  "./img/tables/ans_c22q2.jpg",
+  "./img/tables/ans_c27q2.jpg",
+  "./img/tables/ans_c35q4.jpg",
   "./img/tables/q04.jpg",
   "./img/tables/q05.jpg",
   "./img/tables/q05_2.jpg",
