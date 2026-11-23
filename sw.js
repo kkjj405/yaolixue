@@ -1,9 +1,10 @@
-/* 药理学 · Service Worker（离线优先，全量预缓存）
- * 版本缓存：2.1.0
- * 资源清单由 build_pwa.py 自动生成，共 61 项。
+/* 药理学 · Service Worker（离线优先；核心与导图分缓存）
+ * 版本：2.1.1　核心 21 项　导图 40 项
+ * 本文件由 build_pwa.py 生成，勿手改。
  */
-const CACHE = 'yll-yaolixue-v2.1.0';
-const ASSETS = [
+const CORE = 'yll-yaolixue-v2.1.1';
+const IMG = 'yll-yaolixue-img-6d667ab7b8';
+const CORE_ASSETS = [
   "./app.css",
   "./index.html",
   "./manifest.webmanifest",
@@ -17,6 +18,16 @@ const ASSETS = [
   "./icons/icon-192.png",
   "./icons/icon-512-maskable.png",
   "./icons/icon-512.png",
+  "./js/boot.js",
+  "./js/cards.js",
+  "./js/core.js",
+  "./js/kpview.js",
+  "./js/misc.js",
+  "./js/quizview.js",
+  "./js/ui.js",
+  "./js/version.js"
+];
+const IMG_ASSETS = [
   "./img/kp01.jpg",
   "./img/kp02.jpg",
   "./img/kp03.jpg",
@@ -56,40 +67,51 @@ const ASSETS = [
   "./img/kp37.jpg",
   "./img/kp38.jpg",
   "./img/kp39.jpg",
-  "./img/kp40.jpg",
-  "./js/boot.js",
-  "./js/cards.js",
-  "./js/core.js",
-  "./js/kpview.js",
-  "./js/misc.js",
-  "./js/quizview.js",
-  "./js/ui.js",
-  "./js/version.js"
+  "./img/kp40.jpg"
 ];
 
+/* 逐项预缓存：本缓存里已有就跳过（旧版本里同名资源直接复用，不重复下载） */
+async function precache(cacheName, urls) {
+  const c = await caches.open(cacheName);
+  await Promise.all(urls.map(async function (u) {
+    try {
+      const hit = await c.match(u, { ignoreSearch: true });
+      if (hit) return;
+      await c.add(new Request(u, { cache: 'reload' }));
+    } catch (e) { /* 单个失败不阻塞安装，运行时会自然回填 */ }
+  }));
+}
+
 self.addEventListener('install', function (e) {
-  e.waitUntil(caches.open(CACHE).then(function (c) {
-    // 单个资源失败不阻塞整体安装（下次 fetch 时会自然回填）
-    return Promise.all(ASSETS.map(function (u) {
-      return c.add(new Request(u, { cache: 'reload' })).catch(function () {});
-    }));
-  }).then(function () { return self.skipWaiting(); }));
+  e.waitUntil((async function () {
+    await precache(IMG, IMG_ASSETS);     // 图片没变时这里几乎零下载
+    await precache(CORE, CORE_ASSETS);
+    await self.skipWaiting();
+  })());
 });
 
 self.addEventListener('activate', function (e) {
-  e.waitUntil(caches.keys().then(function (keys) {
-    return Promise.all(keys.filter(function (k) { return k !== CACHE; })
-      .map(function (k) { return caches.delete(k); }));
-  }).then(function () { return self.clients.claim(); }));
+  e.waitUntil((async function () {
+    const keep = { [CORE]: 1, [IMG]: 1 };
+    const keys = await caches.keys();
+    await Promise.all(keys.map(function (k) {
+      if (keep[k]) return null;
+      if (k.indexOf('__probe__') === 0) return null;
+      return caches.delete(k);
+    }));
+    await self.clients.claim();
+  })());
+});
+
+self.addEventListener('message', function (e) {
+  if (e.data === 'SKIP_WAITING') self.skipWaiting();
 });
 
 self.addEventListener('fetch', function (e) {
   const req = e.request;
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
-  if (url.origin !== self.location.origin) return;   // 跨域请求不接管
-  // version.json / files.json 是「检查更新」用的网络探测文件：
-  // 既不在预缓存清单里，也绝不写入缓存，否则永远读到旧版本。
+  if (url.origin !== self.location.origin) return;   // 跨域不接管
   if (/(^|\/)(version|files)\.json$/.test(url.pathname)) {
     e.respondWith(fetch(new Request(req, { cache: 'no-store' })));
     return;
@@ -100,7 +122,7 @@ self.addEventListener('fetch', function (e) {
       return fetch(req).then(function (res) {
         if (res && res.ok) {
           const copy = res.clone();
-          caches.open(CACHE).then(function (c) { c.put(req, copy); }).catch(function () {});
+          caches.open(CORE).then(function (c) { c.put(req, copy); }).catch(function () {});
         }
         return res;
       }).catch(function () {

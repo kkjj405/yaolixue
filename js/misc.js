@@ -130,7 +130,8 @@
       '<span class="li-s">' + favN + ' 张（题目收藏在「刷题」板块内）</span></span><span class="at-go">›</span></a></div>');
     h.push('<div class="card list">' +
       '<div class="li"><span class="li-ic">' + icon('refresh') + '</span><span class="grow"><span class="li-t">检查更新</span>' +
-      '<span class="li-s" id="upd-msg">点右侧按钮检查</span></span><button class="btn xs" id="upd-btn">检查</button></div>' +
+      '<span class="li-s" id="upd-msg">点右侧按钮检查</span></span><button class="btn xs" id="upd-btn">检查</button>' +
+      '<button class="btn xs ghost" id="upd-hard">强制刷新</button></div>' +
       '<div class="li"><span class="li-ic">' + icon('note') + '</span><span class="grow"><span class="li-t">备份与恢复</span>' +
       '<span class="li-s">导出/导入本机记录</span></span><button class="btn xs" id="bk-out">导出</button><button class="btn xs" id="bk-in">导入</button></div>' +
       '<div class="li"><span class="li-ic">' + icon('hide') + '</span><span class="grow"><span class="li-t">清空本机数据</span>' +
@@ -141,6 +142,7 @@
       '<span class="li-s">自愿 · 随意</span></span><span class="at-go">›</span></a></div>');
     main.innerHTML = h.join('');
     main.querySelector('#upd-btn').onclick = function () { checkUpdate(main); };
+    main.querySelector('#upd-hard').onclick = function () { hardRefresh(main); };
     main.querySelector('#bk-out').onclick = exportAll;
     main.querySelector('#bk-in').onclick = importAll;
     main.querySelector('#clr').onclick = function () {
@@ -159,24 +161,109 @@
     }
     return 0;
   }
+  /* ---------------- 检查更新 / 强制刷新 ----------------
+     2026-11-23 用户反馈「点了检查更新，等好一会才好」：
+     原来是固定 1.2 秒后 reload，而新版本 SW 要下载 61 个文件（约 6 MB），
+     刷新时还没装完 → 看起来像没更新。现在改成：
+       · 下载期间给分段提示（正在下载/正在切换/已完成）；
+       · 等新 SW 真正 installed 再刷新，并等 controllerchange 兜底；
+       · 提供「强制刷新」：注销 SW + 清缓存后重载，作为兜底手段。
+     另：新 SW 已把导图放独立缓存，图片没变时升级不再重下 3.6 MB。 */
+  var updating = false;
+  function sayIn(main, t) {
+    var m = main && main.querySelector('#upd-msg');
+    if (m) m.textContent = t;
+  }
+  function waitSwInstalled(reg, ms) {
+    return new Promise(function (resolve) {
+      var w = reg.installing || reg.waiting;
+      if (!w) { resolve('none'); return; }
+      if (w.state === 'installed' || w.state === 'activated') { resolve(w.state); return; }
+      var done = false, timer = setTimeout(function () { if (!done) { done = true; resolve('timeout'); } }, ms || 30000);
+      w.addEventListener('statechange', function () {
+        if (done) return;
+        if (w.state === 'installed' || w.state === 'activated' || w.state === 'redundant') {
+          done = true; clearTimeout(timer); resolve(w.state);
+        }
+      });
+    });
+  }
+  function reloadOnce() {
+    if (window.__ylReloading) return;
+    window.__ylReloading = true;
+    location.reload();
+  }
+  function hardRefresh(main) {
+    UI.confirmDialog('强制刷新',
+      '将注销离线缓存并重新下载全部资源（约 4~6 MB）。本机的笔记、收藏、做题记录不受影响。\n' +
+      '一般用不到；只有在「检查更新」反复无效时才需要。', '刷新', '取消').then(function (ok) {
+        if (!ok) return;
+        sayIn(main, '正在清理缓存…');
+        var jobs = [];
+        if (navigator.serviceWorker && navigator.serviceWorker.getRegistrations) {
+          jobs.push(navigator.serviceWorker.getRegistrations().then(function (rs) {
+            return Promise.all(rs.map(function (r) { return r.unregister(); }));
+          }));
+        }
+        if (window.caches) {
+          jobs.push(caches.keys().then(function (ks) {
+            return Promise.all(ks.map(function (k) { return caches.delete(k); }));
+          }));
+        }
+        Promise.all(jobs).then(function () {
+          location.replace(location.pathname + '?u=' + Date.now() + (location.hash || '#/home'));
+        }).catch(function () { location.reload(); });
+      });
+  }
   function checkUpdate(main) {
-    var msg = main.querySelector('#upd-msg');
-    function say(t) { if (msg) msg.textContent = t; }
+    if (updating) { UI.toast('正在更新，请稍候'); return; }
+    updating = true;
+    var say = function (t) { sayIn(main, t); };
+    var done = function () { updating = false; };
     say('正在检查…');
     fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
-      .then(function (r) { return r.json(); })
+      .then(function (r) { if (!r.ok) throw new Error('http ' + r.status); return r.json(); })
       .then(function (j) {
         var remote = j.web || '';
-        if (cmp(remote, VER.web) > 0) {
-          say('发现 v' + remote + '，更新中…');
-          if (navigator.serviceWorker && navigator.serviceWorker.getRegistration) {
-            navigator.serviceWorker.getRegistration().then(function (reg) { if (reg) reg.update(); });
-          }
-          setTimeout(function () { location.reload(); }, 1200);
-        } else { say('已是最新（v' + VER.web + '）'); UI.toast('已是最新版本'); }
+        var newer = cmp(remote, VER.web) > 0;
+        var hasSW = !!(navigator.serviceWorker && navigator.serviceWorker.getRegistration);
+        if (!hasSW) {
+          if (newer) {
+            say('发现 v' + remote + '，正在刷新…');
+            setTimeout(function () { location.replace(location.pathname + '?u=' + Date.now() + (location.hash || '')); }, 400);
+          } else { say('已是最新（v' + VER.web + '）'); UI.toast('已是最新版本'); }
+          done(); return;
+        }
+        say(newer ? ('发现 v' + remote + '，正在下载…') : '正在核对离线缓存…');
+        return navigator.serviceWorker.getRegistration().then(function (reg) {
+          if (!reg) { say('离线缓存未启用，可用「强制刷新」'); done(); return; }
+          return reg.update()
+            .then(function () { return waitSwInstalled(reg, 40000); })
+            .then(function (st) {
+              if (st === 'installed' || st === 'activated') {
+                say('新版本已下载，正在切换…');
+                if (reg.waiting) { try { reg.waiting.postMessage('SKIP_WAITING'); } catch (e) { } }
+                /* 已受控页面会在 controllerchange 时由 boot.js 自动刷新；
+                   这里再兜一次，防止个别浏览器不发该事件 */
+                setTimeout(function () {
+                  if (navigator.serviceWorker.controller) reloadOnce();
+                  else setTimeout(reloadOnce, 600);
+                }, 900);
+                return;
+              }
+              if (st === 'none') {
+                if (newer) { say('正在应用 v' + remote + '…'); setTimeout(reloadOnce, 600); }
+                else { say('已是最新（v' + VER.web + '）'); UI.toast('已是最新版本'); }
+                done(); return;
+              }
+              say('下载时间较长，可稍后自动切换；也可点「强制刷新」');
+              done();
+            });
+        });
       })
-      .catch(function () { say('检查失败（离线或不支持）'); });
+      .catch(function (e) { say('检查失败（' + (e && e.message ? e.message : '离线或不支持') + '）'); done(); });
   }
+
   function exportAll() {
     var blob = new Blob([JSON.stringify({ app: 'yaoli', version: VER.app, ts: Date.now(), data: Z.store }, null, 1)], { type: 'application/json' });
     var a = document.createElement('a');
