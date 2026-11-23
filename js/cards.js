@@ -8,6 +8,12 @@
   function chapEntries(chId) {
     return (Z.MAT.entries || []).filter(function (e) { return e.chapterId === chId; });
   }
+  /* 章/节概述（原书章标题下、第一个节标题前的正文；第七章这类「无节章」的引言也在里面） */
+  function introHTML(blocks, label) {
+    if (!blocks || !blocks.length) return '';
+    return '<details class="intro"><summary>' + label + '</summary><div class="rich">' +
+      Z.renderRich(blocks) + '</div></details>';
+  }
   function drugCount(chId) {
     return chapEntries(chId).filter(function (e) { return e.kind === 'drug'; }).length;
   }
@@ -44,7 +50,10 @@
         rows.push('<div class="chap' + (open ? ' open' : '') + '" data-chap="' + c.id + '"><div class="chap-hd">' +
           '<span class="cn">' + esc(c.no) + '　' + esc(c.name) + '</span>' +
           '<span class="chip gray tiny">' + drugCount(c.id) + ' 药</span></div><div class="chap-bd">');
-        if (open) rows.push(entriesHTML(c.id, kw));
+        if (open) {
+          if (!kw) rows.push(introHTML(c.introBlocks, '本章概述'));
+          rows.push(entriesHTML(c.id, kw));
+        }
         rows.push('</div></div>');
       });
       if (rows.length) {
@@ -62,7 +71,11 @@
     var out = ['<div class="ec-list">'], curSec = '';
     entries.forEach(function (e) {
       var sec = Z.sectionById(e.sectionId);
-      if (sec && sec.id !== curSec) { curSec = sec.id; out.push('<div class="ec-sec">' + esc(sec.no) + '　' + esc(sec.name) + '</div>'); }
+      if (sec && sec.id !== curSec) {
+        curSec = sec.id;
+        out.push('<div class="ec-sec">' + esc(sec.no) + '　' + esc(sec.name) + '</div>');
+        if (!kw) out.push(introHTML(sec.introBlocks, '本节概述'));
+      }
       var depth = (e.path || []).length;
       var ind = 14 + depth * 14;
       if (e.kind === 'group') {

@@ -75,6 +75,7 @@
     x = x.replace(/&lt;br\s*\/?&gt;/gi, '<br>');
     x = x.replace(/&lt;\/?(sub|sup)&gt;/gi, '');
     x = x.replace(/<\s*br\s*\/?>/gi, '<br>');
+    x = x.replace(/\n/g, '<br>');
     return x;
   }
   function tableHTML(bl) {

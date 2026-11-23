@@ -24,18 +24,23 @@
   function renderHome(main) {
     UI.header({ title: '药理学' });
     var ms = Z.MAT.stats, ks = Z.KP.stats, qs = Z.QZ.stats;
-    var h = ['<div class="hero"><h1 class="serif">药理学</h1>' +
-      '<p>教材卡片 · 知识要点 · 自测刷题</p>' +
-      '<div class="mini"><span><b>' + ms.drugs + '</b>药物</span><span><b>' + ms.topics + '</b>概念</span>' +
-      '<span><b>' + ks.images + '</b>导图</span><span><b>' + qs.questions + '</b>题</span></div></div>'];
+    var h = ['<div class="hero">' +
+      '<h1 class="hero-t serif">药理学</h1>' +
+      '<div class="hero-en">PHARMACOLOGY</div>' +
+      '<p class="hero-d">教材卡片 · 知识要点 · 自测刷题</p>' +
+      '<div class="hero-stats">' +
+      '<div class="hs"><b>' + ms.cards + '</b><span>张卡片</span></div>' +
+      '<div class="hs"><b>' + ks.items + '</b><span>条要点</span></div>' +
+      '<div class="hs"><b>' + qs.questions + '</b><span>道自测题</span></div>' +
+      '</div></div>'];
     h.push(annHTML());
     h.push('<div class="big-grid">' +
       '<a class="big" href="#/mat"><div class="big-ic">' + icon('book') + '</div><div class="big-t">教材卡片</div>' +
-      '<div class="big-s">' + ms.chapters + ' 章 · ' + (ms.drugs + ms.topics) + ' 张卡<br>药物卡 / 概论卡</div></a>' +
+      '<div class="big-s">' + ms.chapters + ' 章 · ' + ms.cards + ' 张卡<br>药物卡 / 概论卡</div></a>' +
       '<a class="big" href="#/kp"><div class="big-ic">' + icon('bulb') + '</div><div class="big-t">知识要点</div>' +
       '<div class="big-s">' + ks.chapters + ' 章 · ' + ks.items + ' 条<br>导图 · 表格 · 速记</div></a>' +
       '<a class="big" href="#/quiz"><div class="big-ic">' + icon('quiz') + '</div><div class="big-t">自测刷题</div>' +
-      '<div class="big-s">' + qs.questions + ' 题 · 4 种题型<br>答题卡 · 错题 · 收藏</div></a>' +
+      '<div class="big-s">' + qs.questions + ' 题 · 5 种题型<br>答题卡 · 错题 · 收藏</div></a>' +
       '<a class="big" href="#/search"><div class="big-ic">' + icon('search') + '</div><div class="big-t">搜索</div>' +
       '<div class="big-s">药名 / 英文 / 内容<br>教材与要点全覆盖</div></a></div>');
     var favN = Object.keys(Z.store.fav).length;

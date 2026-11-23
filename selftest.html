@@ -32,9 +32,44 @@
       ok('药物卡与统计一致（≥500）', Z.MAT.stats.drugs === Z.MAT.entries.filter(function (e) { return e.kind === 'drug'; }).length && Z.MAT.stats.drugs >= 500, Z.MAT.stats.drugs);
       ok('知识要点条与统计一致（≥50）', Z.KP.stats.items === Z.KP.items.length && Z.KP.stats.items >= 50, Z.KP.stats.items);
       ok('导图与表格数量正常', Z.KP.stats.images >= 20 && Z.KP.stats.tables >= 20, Z.KP.stats.images + '/' + Z.KP.stats.tables);
-      ok('题库 1892', Z.QZ.stats.questions === 1892 && Z.QZ.stats.questions === Z.QZ.questions.length, Z.QZ.stats.questions);
+      ok('题库 1962（含第三十五章 OCR 补录）', Z.QZ.stats.questions === 1962 && Z.QZ.stats.questions === Z.QZ.questions.length, Z.QZ.stats.questions);
+      ok('题型数 A1/B1/X/NM/QA', Z.QZ.stats.A1 === 802 && Z.QZ.stats.B1 === 454 && Z.QZ.stats.X === 527 && Z.QZ.stats.NM === 5 && Z.QZ.stats.QA === 174,
+        [Z.QZ.stats.A1, Z.QZ.stats.B1, Z.QZ.stats.X, Z.QZ.stats.NM, Z.QZ.stats.QA].join('/'));
 
       /* ---------------- 教材 / 知识要点（原断言保留） ---------------- */
+      /* ---------------- 新增：标题层级 / 内容归属 / OCR 补录 ---------------- */
+      var AUX = /^(学习要求|学习目标|本章小结|小结|目标测试|思考题|复习思考题|练习题|课后练习|复习题|案例|案例分析|知识链接|知识拓展|拓展阅读|课堂讨论|关键词|本章要点|导学|自学)$/;
+      var auxHit = Z.MAT.entries.filter(function (e) { return AUX.test(String(e.name).replace(/^[一-龥、（）()0-9.\s]+/, '').trim()) || AUX.test(String(e.name).trim()); });
+      ok('教材：教学辅助标题 0 条', auxHit.length === 0, auxHit.slice(0, 3).map(function (e) { return e.name; }).join('|'));
+      var sup = Z.MAT.entries.filter(function (e) { return e.supplement; });
+      ok('教材：补录「（二）去甲肾上腺素能神经」', sup.some(function (e) { return e.name.indexOf('去甲肾上腺素能神经') >= 0; }), sup.length);
+      var ch7 = Z.MAT.chapters.filter(function (c) { return c.num === 7; })[0];
+      ok('教材：第七章有隐式节且条目 ≥ 10', !!ch7 && ch7.sectionIds.length >= 1 && ch7.entryIds.length >= 10,
+        ch7 ? ch7.sectionIds.length + '/' + ch7.entryIds.length : 'NO');
+      var empt = Z.MAT.sections.filter(function (s) { return !s.entryIds.length && !(s.introBlocks && s.introBlocks.length); });
+      ok('教材：每节都有条目或节前置正文', empt.length === 0, empt.length);
+      var introSec = Z.MAT.sections.filter(function (s) { return s.introBlocks && s.introBlocks.length; }).length;
+      var introCh = Z.MAT.chapters.filter(function (c) { return c.introBlocks && c.introBlocks.length; }).length;
+      ok('教材：章/节前置正文已保留', introSec >= 80 && introCh >= 20, introCh + '/' + introSec);
+      ok('教材：同节内无重复名', (function () {
+        var seen = {}, dup = 0;
+        Z.MAT.sections.forEach(function (s) {
+          var loc = {};
+          s.entryIds.forEach(function (id) {
+            var e = Z.matBy[id]; if (!e) return;
+            var k = String(e.name).replace(/[A-Za-z0-9\s（）()、.,]/g, '');
+            if (loc[k]) dup++; loc[k] = 1;
+          });
+        });
+        return dup === 0;
+      })());
+      var ch35 = Z.QZ.chapters.filter(function (c) { return c.num === 35; })[0];
+      var c35 = Z.QZ.questions.filter(function (q) { return q.chapterId === ch35.id; });
+      var c35t = {}; c35.forEach(function (q) { c35t[q.type] = (c35t[q.type] || 0) + 1; });
+      ok('第三十五章 OCR 补录 29/16/20/7',
+        c35t.A1 === 29 && c35t.B1 === 16 && c35t.X === 20 && c35t.QA === 7,
+        [c35t.A1, c35t.B1, c35t.X, c35t.QA].join('/'));
+
       nav('#/mat');
       ok('教材目录章行', qa('[data-chap]').length > 0, qa('[data-chap]').length);
       var drug = Z.MAT.entries.filter(function (e) { return e.kind === 'drug' && e.blocks.length; })[0];
@@ -43,9 +78,15 @@
       ok('药物卡渲染有内容', body && body.textContent.length > 50, body ? body.textContent.length : 'NO');
       var tblE = Z.MAT.entries.filter(function (e) { return e.blocks.some(function (b) { return b.t === 'table'; }); })[0];
       if (tblE) { nav('#/entry/' + tblE.id); ok('含表格卡片渲染 table', !!q('.tbl-wrap table')); }
-      var mapE = Z.MAT.entries.filter(function (e) { return e.maps && e.maps.length; })[0];
-      nav('#/entry/' + mapE.id);
-      ok('含导图卡片渲染 img', !!q('.rich-img img'));
+      /* §2.6 内容归属红线：教材卡不得出现习题集的导图/表格 */
+      ok('教材条目无任何导图挂载', !Z.MAT.entries.some(function (e) { return (e.maps && e.maps.length) || e.blocks.some(function (b) { return b.t === 'img'; }); }));
+      ok('教材条目 src 全为 book', Z.MAT.entries.every(function (e) { return e.src === 'book'; }));
+      ok('知识要点 src 全为 guide', Z.KP.items.every(function (i) { return i.src === 'guide'; }));
+
+      nav('#/home');
+      ok('首页：封面卡结构就位', !!q('.hero .hero-t') && !!q('.hero-en') && qa('.hero-stats .hs').length === 3);
+      ok('首页：不再出现「4 种题型」旧文案', mainTxt().indexOf('4 种题型') < 0);
+      ok('首页：三个入口 + 搜索', qa('.big-grid .big').length === 4, qa('.big-grid .big').length);
 
       nav('#/kp');
       ok('知识点目录 42 章（连续序号）', qa('.kp-chap').length === 42 &&
@@ -53,6 +94,22 @@
       var kpWithImg = Z.KP.items.filter(function (i) { return i.blocks.some(function (b) { return b.t === 'img'; }); })[0];
       nav('#/kpi/' + kpWithImg.id);
       ok('知识点导图渲染', !!q('.rich-img img'));
+
+      /* §2.7 回归：知识要点里每一张导图都必须真的能加载（不能只看 img 标签存在） */
+      var imgSrcs = [];
+      Z.KP.items.forEach(function (it) { it.blocks.forEach(function (b) { if (b.t === 'img') imgSrcs.push(b.src); }); });
+      ok('知识要点导图引用 40 张', imgSrcs.length === 40, imgSrcs.length);
+      var bad = [];
+      await Promise.all(imgSrcs.map(function (src) {
+        return new Promise(function (res) {
+          var im = new Image();
+          im.onload = function () { if (!(im.naturalWidth > 0)) bad.push(src + ':0'); res(); };
+          im.onerror = function () { bad.push(src + ':ERR'); res(); };
+          im.src = src;
+          setTimeout(function () { res(); }, 6000);
+        });
+      }));
+      ok('知识要点导图全部真实可加载', bad.length === 0, bad.slice(0, 4).join('|'));
 
       nav('#/search?kw=' + encodeURIComponent('阿托品'));
       var sinp = q('#s-kw'); if (sinp) { sinp.value = '阿托品'; sinp.oninput && sinp.oninput(); }
