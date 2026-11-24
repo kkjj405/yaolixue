@@ -90,12 +90,13 @@
     inp.addEventListener('compositionstart', function () { composing = true; });
     inp.addEventListener('compositionend', function () { composing = false; run(); });
     inp.oninput = function () { if (composing) return; clearTimeout(timer); timer = setTimeout(run, 180); };
+    run();   /* 带 ?kw= 直接进来（首页搜索）时先跑一次，否则结果区是空的 */
   }
 
   function renderFav(main) {
     UI.header({ title: '我的收藏', sub: '教材卡片', back: true, backTo: '#/me' });
     var ids = Object.keys(Z.store.fav).filter(function (id) { return Z.matBy[id] || Z.kpBy[id]; });
-    var matIds = ids.filter(function (id) { return Z.matBy[id] && Z.matBy[id].kind !== 'group'; });
+    var matIds = ids.filter(function (id) { return Z.matBy[id] && (Z.matBy[id].kind !== 'group' || Z.isTocEntry(Z.matBy[id])); });
     var kpIds = ids.filter(function (id) { return Z.kpBy[id]; });
     var h = [];
     if (!ids.length) {

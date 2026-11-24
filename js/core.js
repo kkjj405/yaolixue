@@ -3,7 +3,11 @@
   'use strict';
   var MAT = window.YL_MAT || {}, KP = window.YL_KP || {}, QZ = window.YL_QUIZ || {};
   var matBy = {}, kpBy = {}, qBy = {};
-  (MAT.entries || []).forEach(function (e) { matBy[e.id] = e; });
+  var kidsMap = {};   /* 父 id → 子条目（顺序＝ entries 数组顺序，即教材原文顺序） */
+  (MAT.entries || []).forEach(function (e) {
+    matBy[e.id] = e;
+    if (e.parent) (kidsMap[e.parent] = kidsMap[e.parent] || []).push(e);
+  });
   (KP.items || []).forEach(function (e) { kpBy[e.id] = e; });
   (QZ.questions || []).forEach(function (e) { qBy[e.id] = e; });
 
@@ -111,6 +115,10 @@
     if (!bl || !bl.t) return '';
     switch (bl.t) {
       case 'p': {
+        /* 数据里「（1）…」一级被折叠成整行为 <b>…</b>：正文里按小标题渲染（跟着（一）/1. 的层级走） */
+        var raw = String(bl.x == null ? '' : bl.x).trim();
+        var mb = raw.match(/^<b>([\s\S]+)<\/b>$/);
+        if (mb) return '<div class="rich-h lv4">' + inline(mb[1]) + '</div>';
         var x = inline(bl.x).replace(/\n/g, '<br>');
         x = x.replace(/^(主症|兼症|临床表现|适应证|禁忌证|不良反应|注意事项|药理作用|临床应用|体内过程|作用机制)(：)/, '<b class="fl">$1$2</b>');
         return '<p>' + x + '</p>';
@@ -212,11 +220,32 @@
       return e.kind !== 'group' && (!chapterId || e.chapterId === chapterId) && !store.hidden[e.id];
     }).map(function (e) { return e.id; });
   }
+
+  /* ---------------- 目录层级（v2.4.0） ----------------
+   * 目录只到「一、」：path 为空的条目 = 目录行（含 本章概述 / 本节概述）。
+   * 「（一）」「1.」「（1）」「①」及以下不再作为目录行，改为所属「一、」卡片正文里的层级。
+   * 药名仍是独立卡片，但不出现在目录，由「一、」卡片正文里的链接进入。            */
+  function isTocEntry(e) { return !!e && (e.path || []).length === 0; }
+  function tocEntries(chapterId) {
+    return (MAT.entries || []).filter(function (e) {
+      return isTocEntry(e) && (!chapterId || e.chapterId === chapterId);
+    });
+  }
+  function childrenOf(id) { return kidsMap[id] || []; }
+  function ancestorsOf(id) {
+    var out = [], e = matBy[id], guard = 0;
+    while (e && e.parent && matBy[e.parent] && guard++ < 12) { e = matBy[e.parent]; out.unshift(e); }
+    return out;
+  }
+  function navSiblings(id) {
+    var e = matBy[id]; if (!e) return [];
+    if (!e.parent) return tocEntries(e.chapterId);
+    return childrenOf(e.parent);
+  }
   function navEntry(id, dir) {
-    var e = matBy[id];
-    if (!e) return '';
-    var list = (MAT.entries || []).filter(function (x) { return x.chapterId === e.chapterId && x.kind !== 'group' && !store.hidden[x.id]; });
+    var list = navSiblings(id).filter(function (x) { return !store.hidden[x.id]; });
     var i = list.map(function (x) { return x.id; }).indexOf(id);
+    if (i < 0) return '';
     var j = i + dir;
     return (j >= 0 && j < list.length) ? list[j].id : '';
   }
@@ -305,7 +334,6 @@
     kw = norm(kw);
     if (!kw) return { entries: [], kps: [] };
     var es = (MAT.entries || []).filter(function (e) {
-      if (e.kind === 'group') return false;
       return norm(e.name).indexOf(kw) >= 0 || norm(e.en).indexOf(kw) >= 0 || norm(blocksText(e.blocks)).indexOf(kw) >= 0;
     });
     var ks = (KP.items || []).filter(function (i) {
@@ -322,6 +350,8 @@
     mdToBlocks: mdToBlocks, splitSections: splitSections, joinSections: joinSections, viewKp: viewKp,
     viewEntry: viewEntry, entryExists: entryExists, chapterById: chapterById, sectionById: sectionById,
     entryList: entryList, navEntry: navEntry,
+    isTocEntry: isTocEntry, tocEntries: tocEntries, childrenOf: childrenOf,
+    ancestorsOf: ancestorsOf, navSiblings: navSiblings,
     kpList: kpList, navKp: navKp,
     questionsOf: questionsOf, qChapterOf: qChapterOf, isChoice: isChoice, optionsOf: optionsOf,
     sameAnswer: sameAnswer, wrongList: wrongList, favQList: favQList,

@@ -95,6 +95,7 @@
     document.body.classList.remove('drawer-open');
     try { v(main, r.p, r.q); }
     catch (e) {
+      if (window.console) console.error('[view ' + r.name + ']', e);
       main.innerHTML = '<div class="empty"><span class="em-ico">⚠</span>页面出错了<br><span class="tiny">' +
         esc(e && e.message ? e.message : e) + '</span></div>';
       header({ title: '出错' });

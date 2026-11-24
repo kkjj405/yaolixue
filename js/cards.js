@@ -6,10 +6,20 @@
   var st = { kw: '', open: {}, manage: false, sel: {} };
 
   function chapEntries(chId) {
-    return (Z.MAT.entries || []).filter(function (e) { return e.chapterId === chId; });
+    var c = Z.chapterById(chId);
+    if (!c) return [];
+    return (c.entryIds || []).map(function (id) { return Z.matBy[id]; }).filter(Boolean);
   }
   function drugCount(chId) {
     return chapEntries(chId).filter(function (e) { return e.kind === 'drug'; }).length;
+  }
+  /* 目录行：只到「一、」——即 path 为空的条目（含 本章概述 / 本节概述 / 直接挂在节下的药） */
+  function matchKw(e, kw) {
+    return e.name.indexOf(kw) >= 0 || (e.en || '').toLowerCase().indexOf(kw.toLowerCase()) >= 0;
+  }
+  function fx(s) {
+    /* 源稿里半角/混用的括号统一成全角：（一）… */
+    return String(s == null ? '' : s).replace(/^[(（]([一二三四五六七八九十]+)[)）]/, '（$1）');
   }
 
   function renderMat(main) {
@@ -31,20 +41,20 @@
   function listHTML() {
     var kw = st.kw;
     var out = [], hit = 0;
-    (Z.MAT.parts || []).forEach(function (pt, pi) {
+    (Z.MAT.parts || []).forEach(function (pt) {
       var chs = (pt.chapterIds || []).map(function (cid) { return Z.chapterById(cid); }).filter(Boolean);
       var rows = [];
       chs.forEach(function (c) {
-        var entries = chapEntries(c.id).filter(function (e) {
-          return e.kind !== 'group' && (!kw || e.name.indexOf(kw) >= 0 || (e.en || '').toLowerCase().indexOf(kw.toLowerCase()) >= 0);
-        });
-        if (!entries.length) return;
-        hit += entries.length;
+        var all = chapEntries(c.id);
+        /* 有搜索词时跨层级显示命中项；否则只显示目录行（一、及概述） */
+        var list = kw ? all.filter(function (e) { return matchKw(e, kw); }) : all.filter(Z.isTocEntry);
+        if (!list.length) return;
+        hit += list.length;
         var open = !!st.open[c.id] || !!kw;
         rows.push('<div class="chap' + (open ? ' open' : '') + '" data-chap="' + c.id + '"><div class="chap-hd">' +
           '<span class="cn">' + esc(c.no) + '　' + esc(c.name) + '</span>' +
           '<span class="chip gray tiny">' + drugCount(c.id) + ' 药</span></div><div class="chap-bd">');
-        if (open) rows.push(entriesHTML(c.id, kw));
+        if (open) rows.push(entriesHTML(c.id, kw, list));
         rows.push('</div></div>');
       });
       if (rows.length) {
@@ -55,33 +65,39 @@
     return out.join('');
   }
 
-  function entriesHTML(chId, kw) {
-    /* 目录要显示完整层级：一、/（一）/1. 这些「分组标题」也必须出现在列表里（缩进体现层级） */
-    var entries = chapEntries(chId).filter(function (e) {
-      return !kw || e.name.indexOf(kw) >= 0 || (e.en || '').toLowerCase().indexOf(kw.toLowerCase()) >= 0;
+  /* 目录列表：篇 → 章 → 节 →「一、」；「一、」以下不进目录 */
+  function entriesHTML(chId, kw, pre) {
+    var es = pre || (kw ? chapEntries(chId).filter(function (e) { return matchKw(e, kw); })
+      : chapEntries(chId).filter(Z.isTocEntry));
+    var out = ['<div class="ec-list">'], curSec = null;
+    /* 本章概述（introOf=chapter，无 sectionId）排在所有节之前 */
+    es.filter(function (e) { return e.kind === 'intro' && e.introOf === 'chapter'; }).forEach(function (e) {
+      out.push(rowHTML(e));
     });
-    var out = ['<div class="ec-list">'], curSec = '';
-    entries.forEach(function (e) {
+    es.forEach(function (e) {
+      if (e.kind === 'intro' && e.introOf === 'chapter') return;
       var sec = Z.sectionById(e.sectionId);
       if (sec && sec.id !== curSec) {
         curSec = sec.id;
         out.push('<div class="ec-sec">' + esc(sec.no) + '　' + esc(sec.name) + '</div>');
       }
-      var depth = (e.path || []).length;
-      var ind = 14 + depth * 14;
-      if (e.kind === 'group') {
-        out.push('<div class="ec-grp lv' + (e.lvl || 1) + '" style="padding-left:' + ind + 'px">' + esc(e.name) + '</div>');
-        return;
-      }
-      var hid = Z.isHidden(e.id);
-      out.push('<a class="er' + (hid ? ' hid' : '') + '" style="padding-left:' + ind + 'px" href="#/entry/' + e.id + '">' +
-        '<span class="er-kind ' + e.kind + '">' + (e.kind === 'drug' ? '药' : e.kind === 'intro' ? '述' : '概') + '</span>' +
-        '<span class="er-nm">' + esc(e.name) + (e.en ? ' <span class="tiny dim">' + esc(e.en) + '</span>' : '') + '</span>' +
-        (e.maps && e.maps.length ? '<span class="flag" title="含导图">◈</span>' : '') +
-        (Z.isFav(e.id) ? '<span class="flag gold">☆</span>' : '') + '</a>');
+      out.push(rowHTML(e));
     });
     out.push('</div>');
     return out.join('');
+  }
+
+  function rowHTML(e) {
+    var depth = Math.min((e.path || []).length, 3);
+    var ind = 14 + depth * 14;
+    var hid = Z.isHidden(e.id);
+    var k = e.kind === 'drug' ? 'drug' : e.kind === 'intro' ? 'intro' : 'topic';
+    var badge = e.kind === 'drug' ? '药' : e.kind === 'intro' ? '述' : '概';
+    return '<a class="er' + (hid ? ' hid' : '') + '" style="padding-left:' + ind + 'px" href="#/entry/' + e.id + '">' +
+      '<span class="er-kind ' + k + '">' + badge + '</span>' +
+      '<span class="er-nm">' + esc(fx(e.name)) + (e.en ? ' <span class="tiny dim">' + esc(e.en) + '</span>' : '') + '</span>' +
+      (e.maps && e.maps.length ? '<span class="flag" title="含导图">◈</span>' : '') +
+      (Z.isFav(e.id) ? '<span class="flag gold">☆</span>' : '') + '</a>';
   }
 
   function bind(main) {
@@ -103,15 +119,22 @@
     if (!raw) { main.innerHTML = UI.emptyBox('卡片不存在'); return; }
     var v = Z.viewEntry(raw);
     var ch = Z.chapterById(v.chapterId), sec = Z.sectionById(v.sectionId);
-    UI.header({ title: v.name, sub: v.en || (ch ? ch.name : ''), back: true, backTo: '#/mat' });
+    UI.header({ title: fx(v.name), sub: v.en || (ch ? ch.name : ''), back: true, backTo: '#/mat' });
     var h = [];
-    h.push('<div class="card card-main"><div class="ct-hd"><div class="ct-name">' + esc(v.name) +
+    h.push('<div class="card card-main"><div class="ct-hd"><div class="ct-name">' + esc(fx(v.name)) +
       (v.en ? '<span class="ct-en">' + esc(v.en) + '</span>' : '') + '</div>' +
       '<div class="ct-sub">' + esc(ch ? ch.no + ' ' + ch.name : '') + (sec ? ' · ' + esc(sec.name) : '') + '</div></div>');
+    var tcnt = tablesIn(v.id);
     h.push('<div class="meta-row"><span class="chip ' + (v.kind === 'drug' ? 'solid' : v.kind === 'intro' ? 'gold' : 'gray') + '">' +
       (v.kind === 'drug' ? '药物' : v.kind === 'intro' ? '概述' : '概念/概论') + '</span>' +
       (v.maps && v.maps.length ? '<span class="chip">含导图 ' + v.maps.length + ' 张</span>' : '') +
-      '<span class="chip gray">' + (v.blocks || []).filter(function (b) { return b.t === 'table'; }).length + ' 表</span></div>');
+      (tcnt ? '<span class="chip gray">' + tcnt + ' 表</span>' : '') + '</div>');
+    var anc = Z.ancestorsOf(v.id);
+    if (anc.length) {
+      h.push('<div class="crumb-row">' + anc.map(function (a) {
+        return '<a class="crumb" href="#/entry/' + a.id + '">' + esc(fx(a.name)) + '</a>';
+      }).join('<span class="crumb-sep">›</span>') + '</div>');
+    }
     h.push('<div class="ct-body rich" id="ct-body">' + bodyHTML(v) + '</div>');
     h.push('<div class="ct-acts">' +
       '<button class="btn sm" data-act="note">' + icon('note') + '笔记</button>' +
@@ -141,6 +164,8 @@
 
   function bodyHTML(v) {
     var h = Z.renderRich(v.blocks);
+    var kids = Z.childrenOf(v.id);
+    if (kids.length) h += kidsHTML(kids);
     if (v.maps && v.maps.length) {
       h += '<section class="sec"><h2 class="sec-h">思维导图</h2>' + v.maps.map(function (m) {
         return '<figure class="rich-img"><img src="' + esc(m.src) + '" alt="' + esc(m.title) + '" loading="lazy" onclick="UI.lightbox(this.getAttribute(\'src\'))">' +
@@ -148,6 +173,49 @@
       }).join('') + '</section>';
     }
     return h || '<div class="empty">本条教材未收录正文</div>';
+  }
+
+  /* 统计整棵子树里的表格数（「一、」卡片含下级正文时也要算上） */
+  function tablesIn(id) {
+    var n = 0, stack = [id];
+    while (stack.length) {
+      var cur = stack.pop(), e = Z.matBy[cur];
+      if (e) (e.blocks || []).forEach(function (b) { if (b && b.t === 'table') n++; });
+      Z.childrenOf(cur).forEach(function (k) { stack.push(k.id); });
+    }
+    return n;
+  }
+
+  /* ---- 「一、」卡片正文：把（一）/1. 变成子标题，把药名变成可点链接（药卡仍在，目录不显示） ---- */
+  function kidsHTML(kids) {
+    var out = [], buf = [];
+    function flush() { if (buf.length) { out.push(drugLinksHTML(buf)); buf = []; } }
+    kids.forEach(function (k) {
+      if (k.kind === 'drug' && !Z.childrenOf(k.id).length) { buf.push(k); return; }
+      flush();
+      out.push(subHTML(k));
+    });
+    flush();
+    return out.join('');
+  }
+
+  function subHTML(e) {
+    /* （一）=path1 → lv2；1.=path2 → lv3；更深 → lv4 */
+    var d = Math.max(1, Math.min((e.path || []).length, 3));
+    var lv = d + 1;
+    var h = '<div class="rich-h lv' + lv + '">' + esc(fx(e.name)) +
+      (e.en ? '<span class="rich-en">' + esc(e.en) + '</span>' : '') + '</div>' + Z.renderRich(e.blocks);
+    var kids = Z.childrenOf(e.id);
+    if (kids.length) h += kidsHTML(kids);
+    return '<div class="sub lv' + lv + '">' + h + '</div>';
+  }
+
+  function drugLinksHTML(arr) {
+    return '<div class="drug-links">' + arr.map(function (d) {
+      return '<a class="dl' + (Z.isHidden(d.id) ? ' hid' : '') + '" href="#/entry/' + d.id + '">' +
+        '<span class="dl-n">' + esc(fx(d.name)) + '</span>' +
+        (d.en ? '<span class="dl-en">' + esc(d.en) + '</span>' : '') + '<span class="dl-go">›</span></a>';
+    }).join('') + '</div>';
   }
 
   /* ---------------- 面板：笔记 / 收藏 / 编辑 / 隐藏 ---------------- */

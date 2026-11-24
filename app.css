@@ -381,6 +381,27 @@ textarea.input{resize:vertical; min-height:88px}
 .rich blockquote{margin:8px 0;padding:8px 12px;border-left:3px solid var(--brown-l);background:var(--card-2);color:var(--ink-2);font-size:13.5px;border-radius:0 8px 8px 0}
 .rich-h{font-weight:700;color:var(--brown-d);margin:12px 0 6px;font-size:15px}
 .rich-h.lv6{font-size:14px;margin-left:4px;padding-left:8px;border-left:3px solid var(--line-2)}
+/* ===== v2.4.0 目录只到「一、」：卡片正文内的（一）/1./更深层级 ===== */
+.rich-h.lv2{font-size:15.5px;margin:18px 0 7px;padding-left:9px;border-left:3px solid var(--brown);
+  font-family:"Songti SC","STSong","Noto Serif SC",serif;letter-spacing:.5px}
+.rich-h.lv3{font-size:14px;margin:13px 0 5px;padding-left:9px;border-left:3px solid var(--brown-l);color:var(--brown-d)}
+.rich-h.lv4{font-size:13px;margin:10px 0 4px;padding-left:9px;border-left:2px solid var(--line-2);color:var(--ink-2)}
+.rich-en{font-size:11.5px;font-weight:400;color:var(--ink-3);margin-left:6px;letter-spacing:0}
+.sub.lv3{margin-left:8px}
+.sub.lv4{margin-left:16px}
+.sub>.drug-links:last-child{margin-bottom:2px}
+.drug-links{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0 10px}
+.dl{display:inline-flex;align-items:baseline;gap:5px;border:1px solid var(--line-2);background:var(--card);
+  border-radius:9px;padding:5px 10px;text-decoration:none;color:var(--ink);font-size:13.5px;line-height:1.3}
+.dl:active{background:var(--paper-2)}
+.dl.hid{opacity:.55}
+.dl-n{font-weight:600;color:var(--brown-d)}
+.dl-en{font-size:11px;color:var(--ink-3)}
+.dl-go{color:var(--brown-l);font-size:12px}
+.crumb-row{display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin:0 2px 8px}
+.crumb{font-size:11.5px;color:var(--brown);text-decoration:none;border-bottom:1px dashed var(--brown-l);
+  max-width:46vw;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.crumb-sep{color:var(--ink-3);font-size:11px}
 /* 表格：窄屏横向滚动，单元格自动换行（不得截断） */
 .tbl-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:6px 0 10px;border:1px solid var(--line);border-radius:10px}
 .tbl-cap{font-size:12.5px;color:var(--ink-2);margin:10px 0 4px;font-weight:600}

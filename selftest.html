@@ -51,13 +51,14 @@
       var introSec = Z.MAT.sections.filter(function (s) { return s.introBlocks && s.introBlocks.length; }).length;
       var introCh = Z.MAT.chapters.filter(function (c) { return c.introBlocks && c.introBlocks.length; }).length;
       ok('教材：章/节前置正文已保留', introSec >= 80 && introCh >= 20, introCh + '/' + introSec);
-      ok('教材：同节内无重复名', (function () {
+      ok('教材：同一父节点下无重复名', (function () {
+        /* 不同父节点下允许同名（如第十一章 二、人工合成镇痛药 下另有「（一）阿片受体激动药」） */
         var seen = {}, dup = 0;
         Z.MAT.sections.forEach(function (s) {
           var loc = {};
           s.entryIds.forEach(function (id) {
             var e = Z.matBy[id]; if (!e || e.introOf) return;
-            var k = String(e.name).replace(/\s+/g, '');
+            var k = (e.parent || '') + '|' + String(e.name).replace(/\s+/g, '');
             if (loc[k]) dup++; loc[k] = 1;
           });
         });
@@ -81,6 +82,61 @@
       if (q('[data-chap] .chap-hd')) q('[data-chap] .chap-hd').click();
       await wait(20);
       ok('目录里出现概述卡（述）', qa('.er-kind.intro').length >= 1, qa('.er-kind.intro').length);
+
+      /* ---------- v2.4.0：目录只到「一、」，其下全部进卡片正文 ---------- */
+      nav('#/mat');
+      await wait(30);
+      qa('[data-chap] .chap-hd').forEach(function (hd) {
+        if (!hd.closest('[data-chap]').classList.contains('open')) hd.click();
+      });
+      await wait(40);
+      var tocNames = qa('.ec-list .er-nm').map(function (n) { return n.textContent.replace(/\s+/g, ''); });
+      var p0n = Z.MAT.entries.filter(function (e) { return (e.path || []).length === 0; }).length;
+      ok('目录行数 = path 为空的条目数', tocNames.length === p0n, tocNames.length + '/' + p0n);
+      function chapToc(num) {
+        var c = Z.MAT.chapters.filter(function (x) { return x.num === num; })[0];
+        var box = c ? document.querySelector('[data-chap="' + c.id + '"] .ec-list') : null;
+        return box ? Array.prototype.slice.call(box.querySelectorAll('.er-nm')).map(function (n) {
+          return String(n.firstChild ? n.firstChild.textContent : n.textContent).replace(/\s+/g, '');
+        }) : [];
+      }
+      var want6 = ['本章概述', '一、构效关系与分类', '二、α受体激动药', '三、β受体激动药', '四、α、β受体激动药',
+        '本节概述', '一、α受体拮抗药', '二、β受体拮抗药', '三、α、β受体拮抗药'];
+      var got6 = chapToc(6);
+      ok('第六章目录 = 章概述 + 节 + 一、（用例 B）', JSON.stringify(got6) === JSON.stringify(want6), got6.join(','));
+      var want35 = ['本节概述', '一、β-内酰胺类抗生素概述', '二、青霉素类抗生素', '三、头孢菌素类抗生素',
+        '四、其他β-内酰胺类抗生素', '五、β-内酰胺酶抑制药及其复方制剂', '本节概述', '达托霉素', '磷霉素'];
+      var got35 = chapToc(35);
+      ok('第三十五章目录（用例 A 的目录部分）', JSON.stringify(got35) === JSON.stringify(want35), got35.join(','));
+      var grpA = Z.MAT.entries.filter(function (e) { return e.name === '二、α受体激动药'; })[0];
+      nav('#/entry/' + grpA.id);
+      await wait(50);
+      var gtxt = q('#ct-body') ? q('#ct-body').textContent : '';
+      ok('「一、」卡片正文含（一）（二）（三）子标题',
+        gtxt.indexOf('（一）') >= 0 && gtxt.indexOf('（二）') >= 0 && gtxt.indexOf('（三）') >= 0);
+      ok('「一、」卡片正文含 1./2. 子标题', /1\.\s*外周/.test(gtxt) && /2\.\s*中枢/.test(gtxt), gtxt.length);
+      ok('「一、」卡片里有药名链接', qa('#ct-body .dl').length >= 3, qa('#ct-body .dl').length);
+      var dl0 = q('#ct-body .dl');
+      if (dl0) {
+        var dlHref = dl0.getAttribute('href');
+        nav(dlHref);
+        await wait(50);
+        ok('点药名链接可进药卡且有正文', !!q('#ct-body') && q('#ct-body').textContent.length > 50 && mainTxt().indexOf('去甲肾上腺素') >= 0,
+          q('#ct-body') ? q('#ct-body').textContent.length : 'NO');
+        ok('药卡显示上级路径', !!q('.crumb-row .crumb'), qa('.crumb-row .crumb').length);
+      }
+      var e35 = Z.MAT.entries.filter(function (e) { return e.name.indexOf('β-内酰胺类抗生素概述') >= 0; })[0];
+      nav('#/entry/' + e35.id);
+      await wait(50);
+      var b35 = q('#ct-body') ? q('#ct-body').textContent.replace(/\s+/g, '') : '';
+      var i1 = b35.indexOf('（一）分类'), i2 = b35.indexOf('1.青霉素类'), i3 = b35.indexOf('（1）天然青霉素');
+      ok('第三十五章：正文顺序（一）分类 → 1.青霉素类 →（1）天然青霉素', i1 >= 0 && i1 < i2 && i2 < i3, [i1, i2, i3].join('/'));
+      ok('第三十五章：4.β-内酰胺酶抑制药 在（二）化学结构 之前',
+        b35.indexOf('4.β-内酰胺酶抑制药') >= 0 && b35.indexOf('4.β-内酰胺酶抑制药') < b35.indexOf('（二）化学结构'));
+      ok('第三十五章：（四）耐药机制下 3.积聚减少 →（1）降低细胞壁外膜通透性',
+        b35.indexOf('3.细菌体内的β-内酰胺类抗生素积聚减少') >= 0 &&
+        b35.indexOf('3.细菌体内的β-内酰胺类抗生素积聚减少') < b35.indexOf('（1）降低细胞壁外膜通透性'));
+
       var ie = introList.filter(function (e) { return e.introOf === 'chapter'; })[0];
       nav('#/entry/' + ie.id);
       await wait(40);   /* 等 hashchange 触发的二次渲染结束，否则面板会被冲掉 */
@@ -475,7 +531,7 @@
       F++; L.push('EXC ' + (e && e.stack ? e.stack : e));
     }
     document.getElementById('R').textContent = 'RESULT P=' + P + ' F=' + F + ' ' + L.join(' | ');
-    document.title = 'YL SELFTEST P=' + P + ' F=' + F;
+    document.title = 'YL SELFTEST P=' + P + ' F=' + F + (L.length ? ' ' + L.join(' | ') : '');
   }
   setTimeout(function () { run(); }, 400);
 })();
