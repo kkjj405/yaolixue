@@ -5,6 +5,27 @@
   var esc = Z.esc, icon = UI.icon;
   var st = { kw: '', open: {}, manage: false, sel: {} };
 
+  /* 2.4.3：从目录点进卡片后，返回时回到原位置（不再跳回目录顶部）。
+     不只用 scrollY，还记住「点的那一行当时在屏幕上的位置」，回来后按行对齐，位置更准。 */
+  var matY = 0, backMemo = null;
+  window.addEventListener('scroll', function () {
+    if ((location.hash || '').indexOf('#/mat') === 0) matY = window.scrollY || window.pageYOffset || 0;
+  }, { passive: true });
+  document.addEventListener('click', function (ev) {
+    if ((location.hash || '').indexOf('#/mat') !== 0) return;
+    var t = ev.target;
+    if (!t || !t.closest) return;
+    var a = t.closest('a.er');
+    if (!a) return;
+    var box = a.closest('[data-chap]');
+    backMemo = {
+      y: matY,
+      top: a.getBoundingClientRect ? a.getBoundingClientRect().top : null,
+      href: a.getAttribute('href') || '',
+      chap: box ? box.getAttribute('data-chap') : ''
+    };
+  }, true);
+
   function chapEntries(chId) {
     var c = Z.chapterById(chId);
     if (!c) return [];
@@ -17,15 +38,16 @@
   function matchKw(e, kw) {
     return e.name.indexOf(kw) >= 0 || (e.en || '').toLowerCase().indexOf(kw.toLowerCase()) >= 0;
   }
-  /* 目录行：一、级（path 为空）+ 每一张药物卡单独一行（药卡直接点进去）；
-     「（一）」「1.」仍只作为卡片正文里的子标题，不占目录行。 */
-  function isTocRow(e) { return Z.isTocEntry(e) || e.kind === 'drug'; }
+  /* 目录行判据（搜索用）：一、级（path 为空）或药卡 */
   function fx(s) {
     /* 源稿里半角/混用的括号统一成全角：（一）… */
     return String(s == null ? '' : s).replace(/^[(（]([一二三四五六七八九十]+)[)）]/, '（$1）');
   }
 
   function renderMat(main) {
+    var memo = backMemo;
+    backMemo = null;
+    if (memo && memo.chap) st.open[memo.chap] = true;   /* 保证原来那一章是展开的，行才回得来 */
     UI.header({ title: '教材卡片', sub: Z.MAT.stats.entries + ' 条',
       actions: [{ icon: 'search', label: '搜索', onClick: function () { UI.go('#/search'); } }] });
     var h = ['<div class="searchbox mb10"><svg class="s-ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke-width="1.9"/><path d="m16 16 4.5 4.5" stroke-width="1.9" stroke-linecap="round" fill="none"/></svg>' +
@@ -33,6 +55,19 @@
     h.push('<div id="mat-list">' + listHTML() + '</div>');
     main.innerHTML = h.join('');
     bind(main);
+    if (memo) {
+      /* 等一帧再滚，避免刚替换 DOM 时高度还没算好；按「点的那一行」对齐，比纯 scrollY 更准 */
+      var put = function () {
+        var el = memo.href ? document.querySelector('a.er[href="' + memo.href + '"]') : null;
+        if (el && memo.top != null) {
+          window.scrollTo(0, (window.scrollY || 0) + el.getBoundingClientRect().top - memo.top);
+        } else {
+          window.scrollTo(0, memo.y || 0);
+        }
+      };
+      put();
+      if (window.requestAnimationFrame) requestAnimationFrame(put);
+    }
     var kw = main.querySelector('#mat-kw');
     var timer = null, composing = false;
     function apply() { st.kw = kw.value.trim(); main.querySelector('#mat-list').innerHTML = listHTML(); bind(main); }
@@ -49,10 +84,11 @@
       var rows = [];
       chs.forEach(function (c) {
         var all = chapEntries(c.id);
-        /* 有搜索词时跨层级显示命中项；否则显示目录行（一、/概述）+ 每张药物卡 */
-        var list = kw ? all.filter(function (e) { return matchKw(e, kw); }) : all.filter(isTocRow);
-        if (!list.length) return;
-        hit += list.length;
+        /* 有搜索词时跨层级显示命中项；否则显示目录（一、级 + 概述 + 药卡，药卡挂在它所属小节下） */
+        var list = kw ? all.filter(function (e) { return matchKw(e, kw); }) : all.filter(Z.isTocEntry);
+        var rowN = kw ? list.length : (list.length + all.filter(function (e) { return e.kind === 'drug'; }).length);
+        if (!rowN) return;
+        hit += rowN;
         var open = !!st.open[c.id] || !!kw;
         rows.push('<div class="chap' + (open ? ' open' : '') + '" data-chap="' + c.id + '"><div class="chap-hd">' +
           '<span class="cn">' + esc(c.no) + '　' + esc(c.name) + '</span>' +
@@ -68,14 +104,31 @@
     return out.join('');
   }
 
-  /* 目录列表：篇 → 章 → 节 → 一、 → 药（每张药卡单独一行） */
+  /* 目录：篇 → 章 → 节 → 一、 →［（一）/1. 浅灰小节标题］→ 药卡（每张药一行）
+     小节标题只在「它下面确实挂着药卡」时出现，保证没有药的空壳小节不会占地方；
+     药卡按原书顺序挂在自己所在小节下面，缩进体现层级。 */
+  function pad(depth) { return 14 + Math.min(depth, 4) * 16; }
+  function hasDrug(e) {
+    if (e.kind === 'drug') return true;
+    return Z.childrenOf(e.id).some(hasDrug);
+  }
+  function tocKids(e, depth, out) {
+    Z.childrenOf(e.id).forEach(function (k) {
+      if (k.kind === 'drug') { out.push(rowHTML(k, depth)); return; }
+      if (!hasDrug(k)) return;
+      out.push('<div class="ec-sub lv' + Math.min(depth, 3) + '" style="padding-left:' + pad(depth) + 'px">' +
+        esc(fx(k.name)) + '</div>');
+      tocKids(k, depth + 1, out);
+    });
+  }
+
   function entriesHTML(chId, kw, pre) {
     var es = pre || (kw ? chapEntries(chId).filter(function (e) { return matchKw(e, kw); })
-      : chapEntries(chId).filter(isTocRow));
+      : chapEntries(chId).filter(Z.isTocEntry));
     var out = ['<div class="ec-list">'], curSec = null;
     /* 本章概述（introOf=chapter，无 sectionId）排在所有节之前 */
     es.filter(function (e) { return e.kind === 'intro' && e.introOf === 'chapter'; }).forEach(function (e) {
-      out.push(rowHTML(e));
+      out.push(rowHTML(e, 0));
     });
     es.forEach(function (e) {
       if (e.kind === 'intro' && e.introOf === 'chapter') return;
@@ -84,16 +137,17 @@
         curSec = sec.id;
         out.push('<div class="ec-sec">' + esc(sec.no) + '　' + esc(sec.name) + '</div>');
       }
-      out.push(rowHTML(e));
+      if (kw) { out.push(rowHTML(e)); return; }          /* 搜索：平铺命中项 */
+      out.push(rowHTML(e, 0));
+      if (e.kind !== 'drug') tocKids(e, 1, out);        /* 一、之下：小节标题 + 药卡 */
     });
     out.push('</div>');
     return out.join('');
   }
 
-  function rowHTML(e) {
-    var depth = Math.min((e.path || []).length, 3);
-    /* 一、的行在 14px；药物卡统一缩进一级（挂在「一、」下面）；节下直接挂的药与 一、 对齐 */
-    var ind = e.kind === 'drug' ? (14 + (depth ? 14 : 0)) : (14 + depth * 14);
+  function rowHTML(e, depth) {
+    if (depth == null) depth = Math.min((e.path || []).length, 3);
+    var ind = pad(depth);
     var hid = Z.isHidden(e.id);
     var k = e.kind === 'drug' ? 'drug' : e.kind === 'intro' ? 'intro' : 'topic';
     var badge = e.kind === 'drug' ? '药' : e.kind === 'intro' ? '述' : '概';

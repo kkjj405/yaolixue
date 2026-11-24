@@ -103,29 +103,41 @@
       });
       ok('（一）只在没有「一、」的节里才当顶层行', strayOne.length === 0,
         strayOne.map(function (e) { return e.name; }).slice(0, 3).join('|'));
+      function nw(s) { return String(s || '').replace(/\s+/g, ''); }
       function chapToc(num) {
         var c = Z.MAT.chapters.filter(function (x) { return x.num === num; })[0];
         var box = c ? document.querySelector('[data-chap="' + c.id + '"] .ec-list') : null;
-        return box ? Array.prototype.slice.call(box.querySelectorAll('.er-nm')).map(function (n) {
-          return String(n.firstChild ? n.firstChild.textContent : n.textContent).replace(/\s+/g, '');
-        }) : [];
+        if (!box) return [];
+        var out = [];
+        Array.prototype.forEach.call(box.children, function (n) {
+          if (n.classList.contains('ec-sec')) return;                 /* 节标题单独看 */
+          if (n.classList.contains('ec-sub')) { out.push(nw(n.textContent)); return; }
+          var nm = n.querySelector('.er-nm');
+          if (nm) out.push(nw(nm.firstChild ? nm.firstChild.textContent : nm.textContent));
+        });
+        return out;
       }
-      var want6 = ['本章概述', '一、构效关系与分类', '二、α受体激动药', '去甲肾上腺素', '间羟胺', '去氧肾上腺素',
-        '羟甲唑啉', '美托咪定', '三、β受体激动药', '异丙肾上腺素', '多巴酚丁胺', '四、α、β受体激动药',
-        '肾上腺素', '多巴胺', '麻黄碱', '本节概述', '一、α受体拮抗药', '酚妥拉明', '妥拉唑林', '酚苄明',
-        '哌唑嗪', '育亨宾', '二、β受体拮抗药', '普萘洛尔', '噻吗洛尔', '美托洛尔', '阿替洛尔', '醋丁洛尔',
-        '三、α、β受体拮抗药', '拉贝洛尔', '卡维地洛', '塞利洛尔'];
+      var want6 = ['本章概述', '一、构效关系与分类', '二、α受体激动药', '（一）α₁、α₂受体激动药', '去甲肾上腺素', '间羟胺',
+        '（二）α₁受体激动药', '去氧肾上腺素', '（三）α₂受体激动药', '1. 外周α2受体激动药', '羟甲唑啉', '美托咪定',
+        '三、β受体激动药', '（一）β₁、β₂受体激动药', '异丙肾上腺素', '（二）β₁受体激动药', '多巴酚丁胺',
+        '四、α、β受体激动药', '肾上腺素', '多巴胺', '麻黄碱', '本节概述', '一、α受体拮抗药',
+        '（一）非选择性α₁、α₂受体拮抗药', '1. 短效类α₁、α₂受体拮抗药', '酚妥拉明', '妥拉唑林',
+        '2. 长效类α₁、α₂受体拮抗药', '酚苄明', '（二）选择性α₁受体拮抗药', '哌唑嗪', '（三）选择性α2受体拮抗药', '育亨宾',
+        '二、β受体拮抗药', '（一）非选择性β₁、β₂受体拮抗药', '1. 无内在拟交感活性的β₁、β₂受体拮抗药', '普萘洛尔', '噻吗洛尔',
+        '（二）选择性β₁受体拮抗药', '1. 无内在拟交感活性的β₁受体拮抗药', '美托洛尔', '阿替洛尔',
+        '2. 有内在拟交感活性的β₁受体拮抗药', '醋丁洛尔', '三、α、β受体拮抗药', '拉贝洛尔', '卡维地洛', '塞利洛尔'];
       var got6 = chapToc(6);
-      ok('第六章目录 = 章概述 + 节 + 一、 + 每张药卡（用例 B）', JSON.stringify(got6) === JSON.stringify(want6),
-        got6.filter(function (t, i) { return t !== want6[i]; }).slice(0, 3).join('|'));
-      var want35 = ['本节概述', '一、β-内酰胺类抗生素概述', '二、青霉素类抗生素', '青霉素', '甲氧西林',
-        '苯唑西林oxacillin萘夫西林nafcillin氯唑西林', '氨苄西林ampicillin阿莫西林', '羧苄西林', '哌拉西林',
-        '替卡西林', '阿洛西林azlocillin美洛西林', '美西林mecillinam替莫西林temocillin匹美西林',
+      ok('第六章目录 = 一、 →（一）→ 1. → 每张药卡（用例 B）',
+        JSON.stringify(got6) === JSON.stringify(want6.map(nw)),
+        got6.filter(function (t, i) { return t !== nw(want6[i]); }).slice(0, 3).join('|') + ' len ' + got6.length + '/' + want6.length);
+      var want35 = ['本节概述', '一、β-内酰胺类抗生素概述', '二、青霉素类抗生素', '1. 天然青霉素', '青霉素',
+        '2. 半合成青霉素', '甲氧西林', '苯唑西林 oxacillin 萘夫西林 nafcillin 氯唑西林', '氨苄西林 ampicillin 阿莫西林',
+        '羧苄西林', '哌拉西林', '替卡西林', '阿洛西林 azlocillin 美洛西林', '美西林 mecillinam 替莫西林 temocillin 匹美西林',
         '三、头孢菌素类抗生素', '四、其他β-内酰胺类抗生素', '五、β-内酰胺酶抑制药及其复方制剂',
         '本节概述', '达托霉素', '磷霉素'];
       var got35 = chapToc(35);
-      ok('第三十五章目录（用例 A 的目录部分）', JSON.stringify(got35) === JSON.stringify(want35),
-        got35.filter(function (t, i) { return t !== want35[i]; }).slice(0, 3).join('|'));
+      ok('第三十五章目录（用例 A 的目录部分）', JSON.stringify(got35) === JSON.stringify(want35.map(nw)),
+        got35.filter(function (t, i) { return t !== nw(want35[i]); }).slice(0, 3).join('|') + ' len ' + got35.length + '/' + want35.length);
       var grpA = Z.MAT.entries.filter(function (e) { return e.name === '二、α受体激动药'; })[0];
       nav('#/entry/' + grpA.id);
       await wait(50);
@@ -166,6 +178,25 @@
       ok('第6章 构效关系：表6-1 + 续表 + 表6-2 三张整表图',
         img68.length === 3 && img68[0].indexOf('tb0601.') >= 0 && img68[1].indexOf('tb0601_2') >= 0 &&
         img68[2].indexOf('tb0602') >= 0, img68.join(','));
+      /* 2.4.3 目录位置记忆：点进卡片再返回，不应跳回目录顶部 */
+      nav('#/mat');
+      await wait(40);
+      var c6x = Z.MAT.chapters.filter(function (x) { return x.num === 6; })[0];
+      var hd6 = document.querySelector('[data-chap="' + c6x.id + '"] .chap-hd');
+      if (hd6 && !hd6.closest('[data-chap]').classList.contains('open')) hd6.click();
+      await wait(40);
+      window.scrollTo(0, 900);
+      await wait(40);
+      var row6 = document.querySelector('a.er[href="#/entry/e077"]');
+      if (row6) {
+        var y0 = window.scrollY;
+        row6.click();
+        await wait(80);
+        ok('目录里点药卡 → 进药物卡', (location.hash || '').indexOf('#/entry/') === 0, location.hash);
+        document.getElementById('hd-back').click();
+        await wait(180);
+        ok('返回目录回到原滚动位置（±80px）', Math.abs(window.scrollY - y0) <= 80, y0 + ' -> ' + window.scrollY);
+      }
 
       var ie = introList.filter(function (e) { return e.introOf === 'chapter'; })[0];
       nav('#/entry/' + ie.id);
