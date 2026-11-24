@@ -1,9 +1,9 @@
 /* 药理学 · Service Worker（离线优先；核心与导图分缓存）
- * 版本：2.3.1　核心 22 项　导图 133 项
+ * 版本：2.3.2　核心 22 项　导图 134 项
  * 本文件由 build_pwa.py 生成，勿手改。
  */
-const CORE = 'yll-yaolixue-v2.3.1';
-const IMG = 'yll-yaolixue-img-f3aede0695';
+const CORE = 'yll-yaolixue-v2.3.2';
+const IMG = 'yll-yaolixue-img-6aae7a6f92';
 const CORE_ASSETS = [
   "./app.css",
   "./index.html",
@@ -149,6 +149,7 @@ const IMG_ASSETS = [
   "./img/tables/tb2001_2.jpg",
   "./img/tables/tb2101.jpg",
   "./img/tables/tb2101_2.jpg",
+  "./img/tables/tb2201.jpg",
   "./img/tables/tb2402.jpg",
   "./img/tables/tb2601.jpg",
   "./img/tables/tb3101.jpg",
@@ -208,6 +209,22 @@ self.addEventListener('fetch', function (e) {
   if (url.origin !== self.location.origin) return;   // 跨域不接管
   if (/(^|\/)(version|files)\.json$/.test(url.pathname)) {
     e.respondWith(fetch(new Request(req, { cache: 'no-store' })));
+    return;
+  }
+  /* 数据文件（教材/要点/题库）：网络优先，拿到就回填缓存——
+     避免「换了新版本但页面还在用旧 data/*.js」的问题 */
+  if (/\/data\/[^/]+\.js$/.test(url.pathname)) {
+    e.respondWith(
+      fetch(new Request(req, { cache: 'no-store' })).then(function (res) {
+        if (res && res.ok) {
+          const copy = res.clone();
+          caches.open(CORE).then(function (c) { c.put(req, copy); }).catch(function () {});
+        }
+        return res;
+      }).catch(function () {
+        return caches.match(req, { ignoreSearch: true });
+      })
+    );
     return;
   }
   e.respondWith(
