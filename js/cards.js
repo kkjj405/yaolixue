@@ -56,8 +56,9 @@
   }
 
   function entriesHTML(chId, kw) {
+    /* 目录要显示完整层级：一、/（一）/1. 这些「分组标题」也必须出现在列表里（缩进体现层级） */
     var entries = chapEntries(chId).filter(function (e) {
-      return e.kind !== 'group' && (!kw || e.name.indexOf(kw) >= 0 || (e.en || '').toLowerCase().indexOf(kw.toLowerCase()) >= 0);
+      return !kw || e.name.indexOf(kw) >= 0 || (e.en || '').toLowerCase().indexOf(kw.toLowerCase()) >= 0;
     });
     var out = ['<div class="ec-list">'], curSec = '';
     entries.forEach(function (e) {
