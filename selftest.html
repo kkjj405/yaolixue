@@ -154,6 +154,18 @@
       ok('第三十五章：（四）耐药机制下 3.积聚减少 →（1）降低细胞壁外膜通透性',
         b35.indexOf('3.细菌体内的β-内酰胺类抗生素积聚减少') >= 0 &&
         b35.indexOf('3.细菌体内的β-内酰胺类抗生素积聚减少') < b35.indexOf('（1）降低细胞壁外膜通透性'));
+      /* 第 6 章「一、构效关系与分类」：A 版缺 1./2./3. 三段，且原配图只有表6-1 的下半页 —— 由 CONTENT_PATCHES 补全 */
+      var e68 = Z.MAT.entries.filter(function (e) { return e.name.indexOf('构效关系与分类') >= 0; })[0];
+      nav('#/entry/' + e68.id);
+      await wait(50);
+      var t68 = q('#ct-body') ? q('#ct-body').textContent : '';
+      ok('第6章 构效关系：1.苯环上的取代 / 2.碳链上的取代 / 3.氨基上的取代 三段齐全',
+        t68.indexOf('1. 苯环上的取代') >= 0 && t68.indexOf('2. 碳链上的取代') >= 0 && t68.indexOf('3. 氨基上的取代') >= 0,
+        t68.length);
+      var img68 = qa('#ct-body .tbl-fig img').map(function (i) { return i.getAttribute('src') || ''; });
+      ok('第6章 构效关系：表6-1 + 续表 + 表6-2 三张整表图',
+        img68.length === 3 && img68[0].indexOf('tb0601.') >= 0 && img68[1].indexOf('tb0601_2') >= 0 &&
+        img68[2].indexOf('tb0602') >= 0, img68.join(','));
 
       var ie = introList.filter(function (e) { return e.introOf === 'chapter'; })[0];
       nav('#/entry/' + ie.id);
