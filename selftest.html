@@ -91,8 +91,18 @@
       });
       await wait(40);
       var tocNames = qa('.ec-list .er-nm').map(function (n) { return n.textContent.replace(/\s+/g, ''); });
-      var p0n = Z.MAT.entries.filter(function (e) { return (e.path || []).length === 0; }).length;
-      ok('目录行数 = path 为空的条目数', tocNames.length === p0n, tocNames.length + '/' + p0n);
+      var rowN = Z.MAT.entries.filter(function (e) { return (e.path || []).length === 0 || e.kind === 'drug'; }).length;
+      ok('目录行数 = 一、/概述 + 每张药卡', tocNames.length === rowN, tocNames.length + '/' + rowN);
+      var secL1 = {};
+      Z.MAT.entries.forEach(function (e) {
+        if (e.kind !== 'drug' && (e.path || []).length === 0 && /^[一二三四五六七八九十]+、/.test(e.name)) secL1[e.sectionId] = 1;
+      });
+      var strayOne = Z.MAT.entries.filter(function (e) {
+        return e.kind !== 'drug' && (e.path || []).length === 0 &&
+          /^[（(][一二三四五六七八九十]+[）)]/.test(e.name) && secL1[e.sectionId];
+      });
+      ok('（一）只在没有「一、」的节里才当顶层行', strayOne.length === 0,
+        strayOne.map(function (e) { return e.name; }).slice(0, 3).join('|'));
       function chapToc(num) {
         var c = Z.MAT.chapters.filter(function (x) { return x.num === num; })[0];
         var box = c ? document.querySelector('[data-chap="' + c.id + '"] .ec-list') : null;
@@ -100,14 +110,22 @@
           return String(n.firstChild ? n.firstChild.textContent : n.textContent).replace(/\s+/g, '');
         }) : [];
       }
-      var want6 = ['本章概述', '一、构效关系与分类', '二、α受体激动药', '三、β受体激动药', '四、α、β受体激动药',
-        '本节概述', '一、α受体拮抗药', '二、β受体拮抗药', '三、α、β受体拮抗药'];
+      var want6 = ['本章概述', '一、构效关系与分类', '二、α受体激动药', '去甲肾上腺素', '间羟胺', '去氧肾上腺素',
+        '羟甲唑啉', '美托咪定', '三、β受体激动药', '异丙肾上腺素', '多巴酚丁胺', '四、α、β受体激动药',
+        '肾上腺素', '多巴胺', '麻黄碱', '本节概述', '一、α受体拮抗药', '酚妥拉明', '妥拉唑林', '酚苄明',
+        '哌唑嗪', '育亨宾', '二、β受体拮抗药', '普萘洛尔', '噻吗洛尔', '美托洛尔', '阿替洛尔', '醋丁洛尔',
+        '三、α、β受体拮抗药', '拉贝洛尔', '卡维地洛', '塞利洛尔'];
       var got6 = chapToc(6);
-      ok('第六章目录 = 章概述 + 节 + 一、（用例 B）', JSON.stringify(got6) === JSON.stringify(want6), got6.join(','));
-      var want35 = ['本节概述', '一、β-内酰胺类抗生素概述', '二、青霉素类抗生素', '三、头孢菌素类抗生素',
-        '四、其他β-内酰胺类抗生素', '五、β-内酰胺酶抑制药及其复方制剂', '本节概述', '达托霉素', '磷霉素'];
+      ok('第六章目录 = 章概述 + 节 + 一、 + 每张药卡（用例 B）', JSON.stringify(got6) === JSON.stringify(want6),
+        got6.filter(function (t, i) { return t !== want6[i]; }).slice(0, 3).join('|'));
+      var want35 = ['本节概述', '一、β-内酰胺类抗生素概述', '二、青霉素类抗生素', '青霉素', '甲氧西林',
+        '苯唑西林oxacillin萘夫西林nafcillin氯唑西林', '氨苄西林ampicillin阿莫西林', '羧苄西林', '哌拉西林',
+        '替卡西林', '阿洛西林azlocillin美洛西林', '美西林mecillinam替莫西林temocillin匹美西林',
+        '三、头孢菌素类抗生素', '四、其他β-内酰胺类抗生素', '五、β-内酰胺酶抑制药及其复方制剂',
+        '本节概述', '达托霉素', '磷霉素'];
       var got35 = chapToc(35);
-      ok('第三十五章目录（用例 A 的目录部分）', JSON.stringify(got35) === JSON.stringify(want35), got35.join(','));
+      ok('第三十五章目录（用例 A 的目录部分）', JSON.stringify(got35) === JSON.stringify(want35),
+        got35.filter(function (t, i) { return t !== want35[i]; }).slice(0, 3).join('|'));
       var grpA = Z.MAT.entries.filter(function (e) { return e.name === '二、α受体激动药'; })[0];
       nav('#/entry/' + grpA.id);
       await wait(50);

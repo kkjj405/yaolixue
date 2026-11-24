@@ -17,6 +17,9 @@
   function matchKw(e, kw) {
     return e.name.indexOf(kw) >= 0 || (e.en || '').toLowerCase().indexOf(kw.toLowerCase()) >= 0;
   }
+  /* 目录行：一、级（path 为空）+ 每一张药物卡单独一行（药卡直接点进去）；
+     「（一）」「1.」仍只作为卡片正文里的子标题，不占目录行。 */
+  function isTocRow(e) { return Z.isTocEntry(e) || e.kind === 'drug'; }
   function fx(s) {
     /* 源稿里半角/混用的括号统一成全角：（一）… */
     return String(s == null ? '' : s).replace(/^[(（]([一二三四五六七八九十]+)[)）]/, '（$1）');
@@ -46,8 +49,8 @@
       var rows = [];
       chs.forEach(function (c) {
         var all = chapEntries(c.id);
-        /* 有搜索词时跨层级显示命中项；否则只显示目录行（一、及概述） */
-        var list = kw ? all.filter(function (e) { return matchKw(e, kw); }) : all.filter(Z.isTocEntry);
+        /* 有搜索词时跨层级显示命中项；否则显示目录行（一、/概述）+ 每张药物卡 */
+        var list = kw ? all.filter(function (e) { return matchKw(e, kw); }) : all.filter(isTocRow);
         if (!list.length) return;
         hit += list.length;
         var open = !!st.open[c.id] || !!kw;
@@ -65,10 +68,10 @@
     return out.join('');
   }
 
-  /* 目录列表：篇 → 章 → 节 →「一、」；「一、」以下不进目录 */
+  /* 目录列表：篇 → 章 → 节 → 一、 → 药（每张药卡单独一行） */
   function entriesHTML(chId, kw, pre) {
     var es = pre || (kw ? chapEntries(chId).filter(function (e) { return matchKw(e, kw); })
-      : chapEntries(chId).filter(Z.isTocEntry));
+      : chapEntries(chId).filter(isTocRow));
     var out = ['<div class="ec-list">'], curSec = null;
     /* 本章概述（introOf=chapter，无 sectionId）排在所有节之前 */
     es.filter(function (e) { return e.kind === 'intro' && e.introOf === 'chapter'; }).forEach(function (e) {
@@ -89,7 +92,8 @@
 
   function rowHTML(e) {
     var depth = Math.min((e.path || []).length, 3);
-    var ind = 14 + depth * 14;
+    /* 一、的行在 14px；药物卡统一缩进一级（挂在「一、」下面）；节下直接挂的药与 一、 对齐 */
+    var ind = e.kind === 'drug' ? (14 + (depth ? 14 : 0)) : (14 + depth * 14);
     var hid = Z.isHidden(e.id);
     var k = e.kind === 'drug' ? 'drug' : e.kind === 'intro' ? 'intro' : 'topic';
     var badge = e.kind === 'drug' ? '药' : e.kind === 'intro' ? '述' : '概';
