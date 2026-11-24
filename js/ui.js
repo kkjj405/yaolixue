@@ -153,6 +153,23 @@
       (tip ? '<div class="tiny" style="margin-top:6px">' + esc(tip) + '</div>' : '') + '</div>';
   }
 
+
+  /* 全局图片点击放大：任何内容区图片（表格/导图/卡片图/答案图）都支持 */
+  (function globalImgZoom() {
+    if (window.__ylImgZoom) return;
+    window.__ylImgZoom = 1;
+    document.addEventListener('click', function (ev) {
+      var t = ev.target;
+      if (!t || t.tagName !== 'IMG') return;
+      if (t.closest && (t.closest('#iv') || t.closest('.no-zoom'))) return;
+      var src = t.getAttribute('src');
+      if (!src) return;
+      ev.stopPropagation();
+      ev.preventDefault();
+      lightbox(src);
+    }, true);
+  })();
+
   function lightbox(src) {
     var el = document.getElementById('imgv');
     if (!el) { el = document.createElement('div'); el.id = 'imgv'; document.body.appendChild(el); }
