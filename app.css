@@ -660,12 +660,20 @@ details.intro{display:none}
 .rich-img img{display:block;max-width:100%;max-height:280px;width:auto;height:auto;object-fit:contain;
   margin:0 auto;border:1px solid var(--line);border-radius:10px;background:#fff;cursor:zoom-in}
 .rich-img figcaption{margin-top:4px;text-align:center;font-size:11.5px;color:var(--ink-3)}
-#imgv{position:fixed;inset:0;background:rgba(16,14,30,.94);z-index:90;display:none;overflow:auto;
-  -webkit-overflow-scrolling:touch;padding:16px}
+/* ===== 图片查看器（2.4.4）：✕/点空白/下滑/Esc/返回键 退出 + 双指缩放、双击放大、放大后拖动 ===== */
+#imgv{position:fixed;inset:0;background:rgba(12,12,16,.96);z-index:90;display:none}
 #imgv.on{display:block}
-#imgv img{display:block;max-width:none;width:auto;margin:0 auto;background:#fff;border-radius:8px}
-.iv-close{position:fixed;right:14px;top:14px;width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,.16);
-  color:#fff;font-size:18px;display:flex;align-items:center;justify-content:center;z-index:91}
+.iv-stage{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;overflow:hidden;
+  touch-action:none;user-select:none;-webkit-user-select:none;-webkit-tap-highlight-color:transparent}
+.iv-stage img{max-width:100%;max-height:100%;width:auto;height:auto;background:#fff;border-radius:6px;
+  transform-origin:0 0;will-change:transform;box-shadow:0 6px 24px rgba(0,0,0,.45)}
+.iv-stage.zoomed{cursor:grab}
+.iv-close{position:fixed;right:12px;top:12px;top:calc(10px + env(safe-area-inset-top));z-index:95;height:40px;padding:0 15px;
+  border:0;border-radius:20px;background:rgba(255,255,255,.20);color:#fff;font:inherit;font-size:14px;
+  display:inline-flex;align-items:center;gap:6px}
+.iv-close:active{background:rgba(255,255,255,.34)}
+.iv-hint{position:fixed;left:0;right:0;bottom:10px;bottom:calc(10px + env(safe-area-inset-bottom));text-align:center;
+  color:rgba(255,255,255,.52);font-size:11.5px;z-index:95;pointer-events:none}
 /* 目录层级缩进 */
 .ec-grp.lv1{font-size:12.5px;font-weight:700;color:var(--brown-d);margin-top:8px}
 .ec-grp.lv2{font-size:11.8px;font-weight:600;color:var(--brown);margin-top:5px}

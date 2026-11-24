@@ -162,7 +162,7 @@
     document.addEventListener('click', function (ev) {
       var t = ev.target;
       if (!t || t.tagName !== 'IMG') return;
-      if (t.closest && (t.closest('#iv') || t.closest('.no-zoom'))) return;
+      if (t.closest && (t.closest('#imgv') || t.closest('.no-zoom'))) return;
       var src = t.getAttribute('src');
       if (!src) return;
       ev.stopPropagation();
@@ -171,13 +171,193 @@
     }, true);
   })();
 
-  function lightbox(src) {
+  /* ---------------- 图片查看器（2.4.4） ----------------
+   * 手机端要能：✕/点背景/下滑/Esc/系统返回键 都能退出；双指缩放、双击放大、放大后拖动、滚轮缩放。 */
+  var iv = { open: false, el: null, stage: null, img: null, s: 1, tx: 0, ty: 0,
+    touch: {}, start: null, moved: false, lastTap: 0, swipe: 0 };
+
+  function ivEl() {
     var el = document.getElementById('imgv');
     if (!el) { el = document.createElement('div'); el.id = 'imgv'; document.body.appendChild(el); }
-    el.innerHTML = '<div class="iv-close">✕</div><img src="' + src + '" alt="">';
-    el.classList.add('on');
-    el.onclick = function () { el.classList.remove('on'); el.innerHTML = ''; };
+    return el;
   }
+  function ivApply() {
+    if (!iv.img) return;
+    iv.s = Math.max(1, Math.min(4, iv.s));
+    iv.img.style.transform = 'translate3d(' + iv.tx + 'px,' + iv.ty + 'px,0) scale(' + iv.s + ')';
+    if (iv.stage) iv.stage.classList.toggle('zoomed', iv.s > 1.01);
+  }
+  function ivReset() { iv.s = 1; iv.tx = 0; iv.ty = 0; ivApply(); }
+  function ivBase() {
+    /* 未变换时图片左上角在屏幕上的位置（transform-origin 是 0 0，缩放不影响左边） */
+    var r = iv.img.getBoundingClientRect();
+    return { x: r.left - iv.tx, y: r.top - iv.ty };
+  }
+  function ivZoomAt(ns, cx, cy) {
+    ns = Math.max(1, Math.min(4, ns));
+    if (!iv.img) return;
+    var E = ivBase();
+    iv.tx = cx - E.x - ((cx - E.x - iv.tx) / iv.s) * ns;
+    iv.ty = cy - E.y - ((cy - E.y - iv.ty) / iv.s) * ns;
+    iv.s = ns;
+    ivApply();
+  }
+  function ivHide() {
+    iv.open = false;
+    iv.touch = {}; iv.start = null;
+    if (iv.el) { iv.el.classList.remove('on'); iv.el.innerHTML = ''; }
+    iv.img = null; iv.stage = null;
+  }
+  function ivClose() {
+    if (!iv.open) return;
+    ivHide();
+    /* 关掉打开图片时压进历史的那一条，避免「返回」把整页退掉 */
+    if (history.state && history.state.ivShow) { try { history.back(); } catch (e) { } }
+  }
+  window.addEventListener('popstate', function () { if (iv.open) ivHide(); });
+
+  function ivPoint(t) { return { x: t.clientX, y: t.clientY }; }
+  function ivDist(a, b) { var dx = a.x - b.x, dy = a.y - b.y; return Math.sqrt(dx * dx + dy * dy) || 1; }
+  function ivMid(a, b) { return { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 }; }
+  function ivStartFromTouches() {
+    var ids = Object.keys(iv.touch);
+    if (ids.length >= 2) {
+      var a = iv.touch[ids[0]], b = iv.touch[ids[1]];
+      var E = iv.img ? ivBase() : { x: 0, y: 0 };
+      iv.start = { mode: 'pinch', d0: ivDist(a, b), m0: ivMid(a, b), s0: iv.s, tx0: iv.tx, ty0: iv.ty, E: E };
+    } else if (ids.length === 1) {
+      var p = iv.touch[ids[0]];
+      iv.start = { mode: 'drag', p0: p, tx0: iv.tx, ty0: iv.ty, s0: iv.s, t: Date.now(), moved: false };
+    }
+    iv.moved = false;
+  }
+
+  function lightbox(src) {
+    var el = ivEl();
+    iv.el = el;
+    el.innerHTML = '<div class="iv-stage"><img src="' + esc(src) + '" alt=""></div>' +
+      '<button class="iv-close" type="button" aria-label="关闭图片">✕ 关闭</button>' +
+      '<div class="iv-hint">双指缩放 · 双击放大 · 下滑或点空白处关闭</div>';
+    el.classList.add('on');
+    iv.open = true;
+    iv.s = 1; iv.tx = 0; iv.ty = 0;
+    iv.touch = {}; iv.start = null; iv.lastTap = 0;
+    iv.stage = el.querySelector('.iv-stage');
+    iv.img = el.querySelector('img');
+    ivApply();
+    if (iv.img && iv.img.decode) iv.img.decode().then(ivApply, function () { });
+    try { history.pushState({ ivShow: 1 }, ''); } catch (e) { }
+
+    el.querySelector('.iv-close').onclick = function (ev) { ev.stopPropagation(); ivClose(); };
+
+    iv.stage.addEventListener('touchstart', function (ev) {
+      for (var i = 0; i < ev.touches.length; i++) {
+        var t = ev.touches[i];
+        iv.touch[t.identifier] = ivPoint(t);
+      }
+      ivStartFromTouches();
+    }, { passive: true });
+
+    iv.stage.addEventListener('touchmove', function (ev) {
+      ev.preventDefault();
+      for (var i = 0; i < ev.touches.length; i++) {
+        var t = ev.touches[i];
+        if (iv.touch[t.identifier]) iv.touch[t.identifier] = ivPoint(t);
+      }
+      var st = iv.start;
+      if (!st) return;
+      var ids = Object.keys(iv.touch);
+      if (st.mode === 'pinch' && ids.length >= 2) {
+        var a = iv.touch[ids[0]], b = iv.touch[ids[1]];
+        var d = ivDist(a, b), m = ivMid(a, b);
+        var s = Math.max(1, Math.min(4, st.s0 * d / st.d0));
+        var kk = s / st.s0;
+        iv.tx = m.x - st.E.x - (st.m0.x - st.E.x - st.tx0) * kk;
+        iv.ty = m.y - st.E.y - (st.m0.y - st.E.y - st.ty0) * kk;
+        iv.s = s;
+        ivApply();
+        iv.moved = true;
+      } else if (st.mode === 'drag' && ids.length === 1) {
+        var p = iv.touch[ids[0]];
+        var dx = p.x - st.p0.x, dy = p.y - st.p0.y;
+        if (Math.abs(dx) > 6 || Math.abs(dy) > 6) { iv.moved = true; st.moved = true; }
+        if (st.s0 > 1.01) {
+          iv.tx = st.tx0 + dx; iv.ty = st.ty0 + dy; ivApply();
+        } else if (dy > 0) {
+          iv.ty = dy * 0.7; iv.swipe = dy; ivApply();      /* 未放大时下滑 = 关闭手势 */
+        }
+      }
+    }, { passive: false });
+
+    function ivEnd(ev) {
+      var st = iv.start;
+      var ids = Object.keys(iv.touch);
+      for (var i = 0; i < ev.changedTouches.length; i++) delete iv.touch[ev.changedTouches[i].identifier];
+      var left = Object.keys(iv.touch).length;
+      if (st && st.mode === 'drag' && !st.moved) {
+        /* 轻点：判断双击放大 / 点空白关闭 */
+        var now = Date.now();
+        var target = ev.target;
+        if (now - iv.lastTap < 320) {
+          iv.lastTap = 0;
+          if (iv.s > 1.01) ivReset();
+          else {
+            var t = (ev.changedTouches && ev.changedTouches[0]) || {};
+            ivZoomAt(2.5, t.clientX || window.innerWidth / 2, t.clientY || window.innerHeight / 2);
+          }
+          return;
+        }
+        iv.lastTap = now;
+        if (iv.s <= 1.01 && target === iv.stage) { ivClose(); return; }
+      }
+      if (st && st.mode === 'drag' && st.s0 <= 1.01 && iv.swipe > 90) { ivClose(); return; }
+      if (left === 0) {
+        iv.swipe = 0;
+        if (iv.s <= 1.01 && (Math.abs(iv.tx) > 1 || Math.abs(iv.ty) > 1)) { iv.tx = 0; iv.ty = 0; ivApply(); }
+        iv.start = null;
+      } else {
+        ivStartFromTouches();          /* 两指撤一指：重新以剩下那指为拖动基准 */
+      }
+    }
+    iv.stage.addEventListener('touchend', ivEnd);
+    iv.stage.addEventListener('touchcancel', ivEnd);
+
+    /* 桌面端：滚轮缩放 / 双击（拖拽与点空白关闭在模块级注册一次） */
+    iv.stage.addEventListener('wheel', function (ev) {
+      ev.preventDefault();
+      var step = ev.deltaY < 0 ? 1.18 : 1 / 1.18;
+      ivZoomAt(iv.s * step, ev.clientX, ev.clientY);
+    }, { passive: false });
+    iv.stage.addEventListener('dblclick', function (ev) {
+      if (iv.s > 1.01) ivReset(); else ivZoomAt(2.5, ev.clientX, ev.clientY);
+    });
+  }
+
+  /* 桌面端拖拽 / 点空白关闭：只注册一次 */
+  var ivDrag = null;
+  document.addEventListener('mousedown', function (ev) {
+    if (!iv.open || ev.button !== 0 || !iv.stage || !iv.stage.contains(ev.target)) return;
+    ivDrag = { x: ev.clientX, y: ev.clientY, tx: iv.tx, ty: iv.ty, moved: false };
+  });
+  document.addEventListener('mousemove', function (ev) {
+    if (!ivDrag || !iv.open) return;
+    var dx = ev.clientX - ivDrag.x, dy = ev.clientY - ivDrag.y;
+    if (Math.abs(dx) > 4 || Math.abs(dy) > 4) ivDrag.moved = true;
+    if (iv.s > 1.01) { iv.tx = ivDrag.tx + dx; iv.ty = ivDrag.ty + dy; ivApply(); }
+  });
+  document.addEventListener('mouseup', function (ev) {
+    if (!ivDrag || !iv.open) return;
+    var wasMoved = ivDrag.moved; ivDrag = null;
+    if (!wasMoved && ev.target === iv.stage && iv.s <= 1.01) ivClose();
+  });
+
+  document.addEventListener('keydown', function (ev) {
+    if (!iv.open) return;
+    if (ev.key === 'Escape') ivClose();
+    if (iv.s > 1.01 && (ev.key === 'ArrowLeft' || ev.key === 'ArrowRight')) {
+      iv.tx += (ev.key === 'ArrowLeft' ? 60 : -60); ivApply();
+    }
+  });
 
   window.YL_UI = {
     lightbox: lightbox,

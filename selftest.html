@@ -197,6 +197,28 @@
         await wait(180);
         ok('返回目录回到原滚动位置（±80px）', Math.abs(window.scrollY - y0) <= 80, y0 + ' -> ' + window.scrollY);
       }
+      /* 2.4.4 图片查看器：能打开、有「✕ 关闭」、点图片不误关、Esc 可关 */
+      nav('#/entry/' + e68.id);
+      await wait(60);
+      var anyImg = q('#ct-body .tbl-fig img');
+      if (anyImg) {
+        anyImg.click();
+        await wait(80);
+        ok('点图片打开查看器', !!q('#imgv.on .iv-stage img') && !!q('#imgv .iv-close'), !!q('#imgv.on'));
+        var ivImg = q('#imgv .iv-stage img');
+        if (ivImg) ivImg.click();
+        await wait(50);
+        ok('点图片本身不会误关/重置查看器', !!q('#imgv.on .iv-stage img'));
+        document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+        await wait(50);
+        ok('Esc 可关闭查看器', !q('#imgv.on'));
+        anyImg.click();
+        await wait(60);
+        var ivc = q('#imgv .iv-close');
+        if (ivc) ivc.click();
+        await wait(80);
+        ok('「✕ 关闭」按钮可关闭查看器', !q('#imgv.on'));
+      }
 
       var ie = introList.filter(function (e) { return e.introOf === 'chapter'; })[0];
       nav('#/entry/' + ie.id);
