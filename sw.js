@@ -1,16 +1,18 @@
 /* 药理学 · Service Worker（离线优先；核心与导图分缓存）
- * 版本：2.2.1　核心 21 项　导图 110 项
+ * 版本：2.3.0　核心 23 项　导图 120 项
  * 本文件由 build_pwa.py 生成，勿手改。
  */
-const CORE = 'yll-yaolixue-v2.2.1';
-const IMG = 'yll-yaolixue-img-b3a29ad78e';
+const CORE = 'yll-yaolixue-v2.3.0';
+const IMG = 'yll-yaolixue-img-5ac1abbe1d';
 const CORE_ASSETS = [
   "./app.css",
   "./index.html",
   "./manifest.webmanifest",
+  "./nohup.out",
   "./qr.jpg",
   "./selftest.html",
   "./css/quiz.css",
+  "./data/idmap.js",
   "./data/kp.js",
   "./data/material.js",
   "./data/quiz.js",
@@ -110,6 +112,16 @@ const IMG_ASSETS = [
   "./img/tables/q40.jpg",
   "./img/tables/q41.jpg",
   "./img/tables/q42.jpg",
+  "./img/tables/qn04_53.jpg",
+  "./img/tables/qn04_68.jpg",
+  "./img/tables/qn04_75.jpg",
+  "./img/tables/qn05_14.jpg",
+  "./img/tables/qn05_23.jpg",
+  "./img/tables/qn07_71.jpg",
+  "./img/tables/qn11_18.jpg",
+  "./img/tables/qn27_94.jpg",
+  "./img/tables/qn30_58.jpg",
+  "./img/tables/qn32_59.jpg",
   "./img/tables/tb0401.jpg",
   "./img/tables/tb0401_2.jpg",
   "./img/tables/tb0402.jpg",

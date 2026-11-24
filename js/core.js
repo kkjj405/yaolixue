@@ -31,6 +31,18 @@
       if (!raw) return clone(DEFAULT);
       var o = JSON.parse(raw);
       Object.keys(DEFAULT).forEach(function (k) { if (o[k] == null) o[k] = clone(DEFAULT[k]); });
+      /* 2.3.0：标题层级重建导致条目 id 位移，按 idmap 把旧数据映射到新 id（只跑一次） */
+      var MAP = window.YL_IDMAP;
+      if (MAP && o.meta && o.meta.idmap !== '2.3') {
+        ['notes', 'fav', 'hidden', 'edits'].forEach(function (k) {
+          var src = o[k] || {}, dst = {};
+          Object.keys(src).forEach(function (id) { dst[MAP[id] || id] = src[id]; });
+          o[k] = dst;
+        });
+        if (o.last && o.last.entry && MAP[o.last.entry]) o.last.entry = MAP[o.last.entry];
+        o.meta.idmap = '2.3';
+        try { localStorage.setItem(KEY, JSON.stringify(o)); } catch (e) { }
+      }
       return o;
     } catch (e) { return clone(DEFAULT); }
   }
@@ -82,8 +94,7 @@
     // 有原书扫描图时直接用图片（保留合并单元格/结构式），文字表作为兜底
     if (bl.img) {
       return '<figure class="tbl-fig"><img src="' + bl.img + '" alt="' + (bl.cap || '表格') +
-        '" loading="lazy" onclick="UI.lightbox(this.getAttribute(\'src\'))">' +
-        '<figcaption>' + (bl.cap ? inline(bl.cap) : '点图放大') + '</figcaption></figure>';
+        '" loading="lazy" onclick="UI.lightbox(this.getAttribute(\'src\'))"></figure>';
     }
     var h = ['<div class="tbl-wrap"><table><thead><tr>'];
     (bl.head || []).forEach(function (c) { h.push('<th>' + cellHTML(c) + '</th>'); });
@@ -114,7 +125,8 @@
       }).join('') + '</div>';
       case 'table': return tableHTML(bl);
       case 'img': return '<figure class="rich-img" data-src="' + esc(bl.src) + '"><img src="' + esc(bl.src) +
-        '" alt="' + esc(bl.alt || '') + '" loading="lazy"><figcaption>' + esc(bl.alt || '') + '</figcaption></figure>';
+        '" alt="' + esc(bl.alt || '') + '" loading="lazy" onclick="UI.lightbox(this.getAttribute(\'src\'))">' +
+        '<figcaption>' + esc(bl.alt || '') + '</figcaption></figure>';
       case 'hr': return '<hr class="rich-hr">';
       default: return '';
     }

@@ -8,7 +8,30 @@
     UI.header({ title: '知识要点', sub: Z.KP.stats.chapters + ' 章 · ' + Z.KP.stats.items + ' 条' });
     var h = ['<div class="card flat"><p class="small muted" style="margin:0">按章看全：导图 ' +
       Z.KP.stats.images + ' 张、表格 ' + Z.KP.stats.tables + ' 个，点章节进入。</p></div>'];
+    /* 篇分组：按原书目录的章号区间（1-3 总论 / 4-7 外周神经 / …） */
+    var PARTS = [
+      ['第一篇', '总论', 1, 3],
+      ['第二篇', '外周神经系统药理学', 4, 7],
+      ['第三篇', '中枢神经系统药理学', 8, 12],
+      ['第四篇', '心血管系统药理学', 13, 18],
+      ['第五篇', '抗炎免疫、自体活性物质药理学', 19, 21],
+      ['第六篇', '内分泌、生殖与代谢药理学', 22, 27],
+      ['第七篇', '影响其他系统药物药理学', 28, 30],
+      ['第八篇', '化学治疗药物药理学', 31, 99]
+    ];
+    function partOf(num) {
+      for (var i = 0; i < PARTS.length; i++) {
+        if (num >= PARTS[i][2] && num <= PARTS[i][3]) return PARTS[i][0] + ' ' + PARTS[i][1];
+      }
+      return null;
+    }
+    var lastPart = null;
     (Z.KP.chapters || []).forEach(function (c, i) {
+      var pn = partOf(c.num);
+      if (pn && pn !== lastPart) {
+        lastPart = pn;
+        h.push('<div class="kp-part">' + esc(pn) + '</div>');
+      }
       var imgs = 0, tabs = 0;
       c.itemIds.forEach(function (id) {
         var it = Z.kpBy[id] || {};

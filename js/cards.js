@@ -142,7 +142,7 @@
     var h = Z.renderRich(v.blocks);
     if (v.maps && v.maps.length) {
       h += '<section class="sec"><h2 class="sec-h">思维导图</h2>' + v.maps.map(function (m) {
-        return '<figure class="rich-img"><img src="' + esc(m.src) + '" alt="' + esc(m.title) + '" loading="lazy">' +
+        return '<figure class="rich-img"><img src="' + esc(m.src) + '" alt="' + esc(m.title) + '" loading="lazy" onclick="UI.lightbox(this.getAttribute(\'src\'))">' +
           '<figcaption>' + esc(m.title) + '</figcaption></figure>';
       }).join('') + '</section>';
     }

@@ -55,6 +55,7 @@
     return out;
   }
   function answerTextOf(q) {
+    if (q.img && !(q.answerText && String(q.answerText).trim())) return '';   /* 答案就是原书表格图片 */
     return (q.answerText && String(q.answerText).trim()) ? q.answerText : '（原书未给出参考答案，可对照课本自行核对）';
   }
 
@@ -685,11 +686,10 @@
           '<div class="qz-explain-h">结果与答案</div>' +
           (answered ? '<div class="qz-res ' + (st === ST.RIGHT ? 'ok' : st === ST.WRONG ? 'bad' : 'pending') + '">' +
             (st === ST.RIGHT ? '✓ 答对了' : st === ST.WRONG ? '✗ 答错了' : '待自评：请对照参考答案给自己评分') + '</div>' : '') +
-          '<div class="qz-ansbox"><div class="qz-ansh">参考答案</div><div class="qz-anst">' +
-          esc(answerTextOf(q)) + '</div>' +
+          '<div class="qz-ansbox"><div class="qz-ansh">参考答案</div>' +
+          (answerTextOf(q) ? '<div class="qz-anst">' + esc(answerTextOf(q)) + '</div>' : '') +
           (q.img ? '<figure class="tbl-fig qz-ansfig"><img src="' + q.img +
-            '" alt="参考答案表格" loading="lazy" onclick="UI.lightbox(this.getAttribute(\'src\'))">' +
-            '<figcaption>原书参考答案中的表格（点图放大）</figcaption></figure>' : '') +
+            '" alt="参考答案表格" loading="lazy" onclick="UI.lightbox(this.getAttribute(\'src\'))"></figure>' : '') +
           '</div>');
         if (st !== ST.NONE && m !== 3) {
           var myAns = (r && typeof r.c === 'string') ? r.c : ((s.drafts && s.drafts[qid]) || '');

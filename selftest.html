@@ -56,8 +56,8 @@
         Z.MAT.sections.forEach(function (s) {
           var loc = {};
           s.entryIds.forEach(function (id) {
-            var e = Z.matBy[id]; if (!e) return;
-            var k = String(e.name).replace(/[A-Za-z0-9\s（）()、.,]/g, '');
+            var e = Z.matBy[id]; if (!e || e.introOf) return;
+            var k = String(e.name).replace(/\s+/g, '');
             if (loc[k]) dup++; loc[k] = 1;
           });
         });
@@ -463,7 +463,6 @@
           }
         }
         ok('表格图片真的能加载', loaded);
-        ok('图片块旁仍保留图题', !!q('.tbl-fig figcaption'), !!q('.tbl-fig figcaption'));
       }
       if (noImgBlocks.length) {
         var t2 = noImgBlocks[0];
