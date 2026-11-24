@@ -63,34 +63,111 @@
     };
   }
 
+  /* ---------------- 搜索（2.4.5：分组 + 打分 + 摘要） ---------------- */
   function renderSearch(main, p, q) {
     UI.header({ title: '搜索', back: true });
     main.innerHTML = '<div class="searchbox mb10"><svg class="s-ico" viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5" fill="none" stroke-width="1.9"/><path d="m16 16 4.5 4.5" stroke-width="1.9" stroke-linecap="round" fill="none"/></svg>' +
-      '<input class="input" id="s-kw" placeholder="药名 / 英文名 / 关键词" value="' + esc((q && q.kw) || '') + '" autocomplete="off"></div><div id="s-res"></div>';
-    var inp = main.querySelector('#s-kw'), box = main.querySelector('#s-res'), timer = null, composing = false;
-    function run() {
+      '<input class="input" id="s-kw" placeholder="药名 / 英文名 / 关键词" value="' + esc((q && q.kw) || '') + '" autocomplete="off"></div>' +
+      '<div id="s-res"></div>';
+    var inp = main.querySelector('#s-kw'), box = main.querySelector('#s-res');
+    var timer = null, composing = false;
+    var showAll = { body: false, kp: false };
+    var last = null;
+
+    function hl(text, kw) {
+      var t = String(text == null ? '' : text), k = String(kw || '');
+      if (!k) return esc(t);
+      var i = t.toLowerCase().indexOf(k.toLowerCase());
+      if (i < 0) return esc(t);
+      return esc(t.slice(0, i)) + '<em class="hl">' + esc(t.slice(i, i + k.length)) + '</em>' + esc(t.slice(i + k.length));
+    }
+    function badge(kind) {
+      return kind === 'drug' ? '<span class="er-kind drug">药</span>'
+        : kind === 'intro' ? '<span class="er-kind intro">述</span>'
+          : '<span class="er-kind topic">概</span>';
+    }
+    function chapName(chapterId) {
+      var c = Z.chapterById(chapterId);
+      return c ? c.no + ' ' + c.name : '';
+    }
+    function nameRow(it, kw) {
+      var e = it.e;
+      return '<a class="er" href="#/entry/' + e.id + '">' + badge(e.kind) +
+        '<span class="er-nm">' + hl(e.name, kw) + (e.en ? ' <span class="tiny dim">' + esc(e.en) + '</span>' : '') +
+        '<span class="sr-ctx">' + esc(chapName(e.chapterId)) + '</span></span></a>';
+    }
+    function bodyRow(it, kw) {
+      var e = it.e, sn = it.snip;
+      return '<a class="er er-body" href="#/entry/' + e.id + '">' + badge(e.kind) +
+        '<span class="er-nm">' + hl(e.name, kw) +
+        '<span class="sr-snip">' + esc(sn.pre) + '<em class="hl">' + esc(sn.mid) + '</em>' + esc(sn.post) + '</span>' +
+        '<span class="sr-ctx">' + esc(chapName(e.chapterId)) + (it.n > 1 ? ' · 出现 ' + it.n + ' 次' : '') + '</span></span></a>';
+    }
+    function kpRow(it, kw, withSnip) {
+      var e = it.e;
+      return '<a class="er" href="#/kpi/' + e.id + '">' + '<span class="er-kind kp">要</span>' +
+        '<span class="er-nm">' + hl(e.title, kw) +
+        (withSnip ? '<span class="sr-snip">' + esc(it.snip.pre) + '<em class="hl">' + esc(it.snip.mid) + '</em>' + esc(it.snip.post) + '</span>' : '') +
+        '</span></a>';
+    }
+    function grp(title) { return '<div class="sr-grp">' + title + '</div>'; }
+    function card(rows) { return '<div class="card flat" style="padding:2px 0">' + rows.join('') + '</div>'; }
+    function moreBtn(n, what, total) {
+      return '<button class="btn sm sr-more" data-more="' + what + '">展开其余 ' + (total - n) + ' 条</button>';
+    }
+
+    function draw() {
       var kw = inp.value.trim();
-      if (!kw) { box.innerHTML = '<div class="card flat"><p class="small muted" style="margin:0">输入药名（如 阿托品）、英文（atropine）或关键词（如 首过效应）。</p></div>'; return; }
-      var r = Z.searchAll(kw);
-      if (!r.entries.length && !r.kps.length) { box.innerHTML = UI.emptyBox('没有找到「' + kw + '」'); return; }
-      var out = [];
-      if (r.entries.length) {
-        out.push('<div class="tiny dim" style="margin:2px 4px 6px">教材卡片 · ' + r.entries.length + '</div><div class="card flat" style="padding:2px 0">' +
-          r.entries.map(function (e) {
-            return '<a class="er" href="#/entry/' + e.id + '"><span class="er-kind ' + e.kind + '">' + (e.kind === 'drug' ? '药' : '概') +
-              '</span><span class="er-nm">' + esc(e.name) + '</span></a>';
-          }).join('') + '</div>');
+      if (!kw) {
+        box.innerHTML = '<div class="card flat"><p class="small muted" style="margin:0">输入药名（如 阿托品）、英文（atropine）或关键词（如 首过效应）。</p></div>';
+        return;
       }
-      if (r.kps.length) {
-        out.push('<div class="tiny dim" style="margin:12px 4px 6px">知识要点 · ' + r.kps.length + '</div><div class="card flat" style="padding:2px 0">' +
-          r.kps.map(function (i) { return '<a class="er" href="#/kpi/' + i.id + '"><span class="er-kind kp">要</span><span class="er-nm">' + esc(i.title) + '</span></a>'; }).join('') + '</div>');
+      var r = Z.searchAll(kw);
+      last = r;
+      var out = [];
+      var nName = r.names.length, nBody = r.bodies.length;
+      var nKpName = r.kpNames.length, nKpBody = r.kpBodies.length;
+      if (!nName && !nBody && !nKpName && !nKpBody) { box.innerHTML = UI.emptyBox('没有找到「' + kw + '」', '换个说法，或只输入药名前两个字试试'); return; }
+
+      if (nName) {
+        out.push(grp('药名 / 标题命中 · ' + nName));
+        out.push(card(r.names.slice(0, 40).map(function (it) { return nameRow(it, kw); })));
+      }
+      if (nBody) {
+        var lim = showAll.body ? nBody : Math.min(nBody, 10);
+        out.push(grp('正文提到 · ' + nBody));
+        out.push(card(r.bodies.slice(0, lim).map(function (it) { return bodyRow(it, kw); })));
+        if (!showAll.body && nBody > lim) out.push(moreBtn(lim, 'body', nBody));
+      }
+      if (nKpName) {
+        out.push(grp('知识要点 · 标题命中 · ' + nKpName));
+        out.push(card(r.kpNames.map(function (it) { return kpRow(it, kw, false); })));
+      }
+      if (nKpBody) {
+        var lim2 = showAll.kp ? nKpBody : Math.min(nKpBody, 5);
+        out.push(grp('知识要点 · 正文提到 · ' + nKpBody));
+        out.push(card(r.kpBodies.slice(0, lim2).map(function (it) { return kpRow(it, kw, true); })));
+        if (!showAll.kp && nKpBody > lim2) out.push(moreBtn(lim2, 'kp', nKpBody));
       }
       box.innerHTML = out.join('');
     }
+
+    box.addEventListener('click', function (ev) {
+      var b = ev.target && ev.target.closest ? ev.target.closest('.sr-more') : null;
+      if (!b) return;
+      ev.preventDefault();
+      showAll[b.getAttribute('data-more')] = true;
+      draw();
+    });
+
     inp.addEventListener('compositionstart', function () { composing = true; });
-    inp.addEventListener('compositionend', function () { composing = false; run(); });
-    inp.oninput = function () { if (composing) return; clearTimeout(timer); timer = setTimeout(run, 180); };
-    run();   /* 带 ?kw= 直接进来（首页搜索）时先跑一次，否则结果区是空的 */
+    inp.addEventListener('compositionend', function () { composing = false; draw(); });
+    inp.oninput = function () {
+      if (composing) return;
+      showAll.body = false; showAll.kp = false;   /* 换词就回到折叠状态 */
+      clearTimeout(timer); timer = setTimeout(draw, 180);
+    };
+    draw();   /* 带 ?kw= 直接进来（首页搜索）时先跑一次 */
   }
 
   function renderFav(main) {

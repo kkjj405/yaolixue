@@ -219,6 +219,25 @@
         await wait(80);
         ok('「✕ 关闭」按钮可关闭查看器', !q('#imgv.on'));
       }
+      /* 2.4.5 搜索：名称命中优先 / 正文折叠 / 高亮 / 分组 */
+      var sRes = Z.searchAll('阿托品');
+      ok('搜索：阿托品 = 名称命中 3 + 正文提到 28', sRes.names.length === 3 && sRes.bodies.length === 28,
+        sRes.names.length + '/' + sRes.bodies.length);
+      ok('搜索排序：第一条是药物卡「阿托品」', !!(sRes.names[0] && sRes.names[0].e.name === '阿托品'),
+        sRes.names[0] && sRes.names[0].e.name);
+      nav('#/search?kw=' + encodeURIComponent('阿托品'));
+      await wait(80);
+      ok('搜索页分组（药名/标题/正文…）', qa('#s-res .sr-grp').length >= 2, qa('#s-res .sr-grp').length);
+      ok('搜索页正文默认折叠（有「展开其余」）', !!q('#s-res .sr-more'), qa('#s-res .er').length);
+      ok('搜索页关键词高亮', qa('#s-res .hl').length >= 3, qa('#s-res .hl').length);
+      var moreBtn = q('#s-res .sr-more[data-more="body"]');
+      if (moreBtn) {
+        moreBtn.click();
+        await wait(80);
+        ok('点「展开其余」后正文条目全出', !q('#s-res .sr-more[data-more="body"]'), qa('#s-res .er').length);
+      }
+      var sEn = Z.searchAll('atropine');
+      ok('英文名搜索命中「阿托品」', sEn.names.length >= 1 && sEn.names[0].e.name === '阿托品', sEn.names.length);
 
       var ie = introList.filter(function (e) { return e.introOf === 'chapter'; })[0];
       nav('#/entry/' + ie.id);
@@ -295,7 +314,7 @@
       nav('#/search?kw=' + encodeURIComponent('阿托品'));
       var sinp = q('#s-kw'); if (sinp) { sinp.value = '阿托品'; sinp.oninput && sinp.oninput(); }
       await wait(260);
-      ok('搜索阿托品', Z.searchAll('阿托品').entries.length >= 1, Z.searchAll('阿托品').entries.length);
+      ok('搜索阿托品', Z.searchAll('阿托品').names.length >= 1, Z.searchAll('阿托品').names.length);
 
       /* ---------------- 刷题：清空痕迹，从目录开始 ---------------- */
       Z.store.rec = {}; Z.store.done = {}; Z.store.wrong = {};

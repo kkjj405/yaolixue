@@ -674,7 +674,17 @@ details.intro{display:none}
 .iv-close:active{background:rgba(255,255,255,.34)}
 .iv-hint{position:fixed;left:0;right:0;bottom:10px;bottom:calc(10px + env(safe-area-inset-bottom));text-align:center;
   color:rgba(255,255,255,.52);font-size:11.5px;z-index:95;pointer-events:none}
-/* 目录层级缩进 */
+/* ===== 搜索（2.4.5）：分组 + 摘要 ===== */
+.sr-grp{margin:14px 4px 6px;font-size:12px;font-weight:600;color:var(--ink-3);letter-spacing:.3px}
+.sr-grp:first-child{margin-top:2px}
+.sr-ctx{display:block;font-size:11px;color:var(--ink-3);font-weight:400;margin-top:2px}
+.er-body{align-items:flex-start}
+.er-body .er-kind{margin-top:1px}
+.sr-snip{margin-top:3px;font-size:12.5px;line-height:1.55;color:var(--ink-2);font-weight:400;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.hl{font-style:normal;color:#a8382f;background:#f7e7e3;border-radius:3px;padding:0 1px}
+.sr-more{width:100%;margin-top:6px}
+/* ===== 目录层级缩进 ===== */
 .ec-grp.lv1{font-size:12.5px;font-weight:700;color:var(--brown-d);margin-top:8px}
 .ec-grp.lv2{font-size:11.8px;font-weight:600;color:var(--brown);margin-top:5px}
 .ec-grp.lv3{font-size:11.2px;font-weight:600;color:var(--ink-3);margin-top:4px}

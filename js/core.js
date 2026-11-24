@@ -328,18 +328,61 @@
   function setHidden(id, v) { if (v) store.hidden[id] = 1; else delete store.hidden[id]; save(true); }
   function hiddenCount() { return Object.keys(store.hidden).length; }
 
-  /* ---------------- 搜索（教材 + 要点） ---------------- */
+  /* ---------------- 搜索（教材 + 要点） ----------------
+   * 2.4.5：结果分组 + 打分 + 正文摘要。
+   *   ① 名字精确 → ② 英文名精确 → ③ 名字前缀 → ④ 名字包含 → ⑤ 英文名包含 → ⑥ 正文出现（按出现次数）
+   *   名字命中的条目不会再重复算进「正文提到」。                                    */
   function norm(s) { return String(s || '').toLowerCase().replace(/\s+/g, ''); }
+  function countOf(hay, needle) {
+    if (!needle) return 0;
+    var n = 0, i = 0;
+    while ((i = hay.indexOf(needle, i)) >= 0) { n++; i += needle.length; }
+    return n;
+  }
+  function snippetOf(txt, raw, span) {
+    span = span || 26;
+    txt = String(txt || '').replace(/\*\*/g, '').replace(/\s+/g, ' ').trim();
+    var i = raw ? txt.toLowerCase().indexOf(String(raw).toLowerCase()) : -1;
+    if (i < 0) return { pre: '', mid: '', post: txt.slice(0, span * 2) + (txt.length > span * 2 ? '…' : '') };
+    var a = Math.max(0, i - span), b = Math.min(txt.length, i + String(raw).length + span);
+    return {
+      pre: (a > 0 ? '…' : '') + txt.slice(a, i),
+      mid: txt.slice(i, i + String(raw).length),
+      post: txt.slice(i + String(raw).length, b) + (b < txt.length ? '…' : '')
+    };
+  }
+  function nameScore(name, en, q) {
+    var n = norm(name), e2 = norm(en);
+    if (n === q) return 1000;
+    if (e2 && e2 === q) return 950;
+    if (n.indexOf(q) === 0) return 900;
+    if (n.indexOf(q) >= 0) return 800;
+    if (e2 && e2.indexOf(q) >= 0) return 700;
+    return 0;
+  }
   function searchAll(kw) {
-    kw = norm(kw);
-    if (!kw) return { entries: [], kps: [] };
-    var es = (MAT.entries || []).filter(function (e) {
-      return norm(e.name).indexOf(kw) >= 0 || norm(e.en).indexOf(kw) >= 0 || norm(blocksText(e.blocks)).indexOf(kw) >= 0;
+    var raw = String(kw == null ? '' : kw).trim();
+    var q = norm(raw);
+    var out = { q: raw, names: [], bodies: [], kpNames: [], kpBodies: [] };
+    if (!q) return out;
+    (MAT.entries || []).forEach(function (e) {
+      var s = nameScore(e.name, e.en, q);
+      if (s) { out.names.push({ e: e, score: s }); return; }
+      var txt = blocksText(e.blocks), n = countOf(norm(txt), q);
+      if (!n) return;
+      out.bodies.push({ e: e, n: n, score: 100 + Math.min(n, 6) * 12 + (e.kind === 'drug' ? 6 : 0), snip: snippetOf(txt, raw) });
     });
-    var ks = (KP.items || []).filter(function (i) {
-      return norm(i.title).indexOf(kw) >= 0 || norm(blocksText(i.blocks)).indexOf(kw) >= 0;
+    (KP.items || []).forEach(function (i) {
+      var s = nameScore(i.title, '', q);
+      if (s) { out.kpNames.push({ e: i, score: s }); return; }
+      var txt = blocksText(i.blocks), n = countOf(norm(txt), q);
+      if (!n) return;
+      out.kpBodies.push({ e: i, n: n, score: 100 + Math.min(n, 6) * 12, snip: snippetOf(txt, raw) });
     });
-    return { entries: es.slice(0, 60), kps: ks.slice(0, 60) };
+    function cmp(a, b) { return b.score - a.score || (a.e.chapterId < b.e.chapterId ? -1 : a.e.chapterId > b.e.chapterId ? 1 : 0); }
+    out.names.sort(cmp); out.bodies.sort(cmp);
+    out.kpNames.sort(cmp); out.kpBodies.sort(cmp);
+    return out;
   }
 
   window.YL = {
